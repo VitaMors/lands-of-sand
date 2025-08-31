@@ -339,16 +339,35 @@
 
   // ---------- Input (click to move) ----------
   let camera = { x: player.x - VIEW_W/2, y: player.y - VIEW_H/2 };
+  
+  // Convert screen coordinates to isometric tile coordinates
+  function screenToTile(screenX, screenY) {
+    // Adjust for camera and isometric projection
+    const worldX = (screenX - VIEW_W/2) + camera.x/2;
+    const worldY = (screenY - VIEW_H/3) + camera.y/3;
+    
+    // Convert from isometric to grid coordinates
+    const tileX = Math.floor((worldX / (TILE/2) + worldY / (TILE/4)) / 2);
+    const tileY = Math.floor((worldY / (TILE/4) - worldX / (TILE/2)) / 2);
+    
+    return { x: tileX, y: tileY };
+  }
+  
   cvs.addEventListener('click', e => {
     const rect = cvs.getBoundingClientRect();
-    const mx = e.clientX - rect.left + camera.x;
-    const my = e.clientY - rect.top + camera.y;
-    const tx = Math.floor(mx / TILE);
-    const ty = Math.floor(my / TILE);
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+    
+    const tile = screenToTile(screenX, screenY);
     const sx = Math.floor(player.x / TILE);
     const sy = Math.floor(player.y / TILE);
-    const path = aStar(sx,sy,tx,ty);
-    player.path = path.map(p=>({x:p.x*TILE+TILE/2,y:p.y*TILE+TILE/2}));
+    
+    // Clamp to valid tile range
+    const tx = Math.max(0, Math.min(MAP_W-1, tile.x));
+    const ty = Math.max(0, Math.min(MAP_H-1, tile.y));
+    
+    const path = aStar(sx, sy, tx, ty);
+    player.path = path.map(p => ({x: p.x*TILE + TILE/2, y: p.y*TILE + TILE/2}));
   });
 
   // Keyboard: I = inventory
@@ -451,7 +470,77 @@
     }
   }
 
-  // ---------- Rendering ----------
+  // ---------- Isometric Rendering (RuneScape Style) ----------
+  
+  // Isometric projection helpers
+  function toIso(x, y) {
+    return {
+      x: (x - y) * (TILE/2),
+      y: (x + y) * (TILE/4)
+    };
+  }
+  
+  function drawIsometricTile(wx, wy, height, topColor, sideColor, frontColor) {
+    const h = height;
+    
+    // Draw tile base (diamond shape)
+    ctx.fillStyle = topColor;
+    ctx.beginPath();
+    ctx.moveTo(wx, wy - h);
+    ctx.lineTo(wx + TILE/2, wy + TILE/4 - h);
+    ctx.lineTo(wx, wy + TILE/2 - h);
+    ctx.lineTo(wx - TILE/2, wy + TILE/4 - h);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Draw right side (if height > 0)
+    if (h > 0) {
+      ctx.fillStyle = sideColor;
+      ctx.beginPath();
+      ctx.moveTo(wx + TILE/2, wy + TILE/4 - h);
+      ctx.lineTo(wx + TILE/2, wy + TILE/4);
+      ctx.lineTo(wx, wy + TILE/2);
+      ctx.lineTo(wx, wy + TILE/2 - h);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Draw front side
+      ctx.fillStyle = frontColor;
+      ctx.beginPath();
+      ctx.moveTo(wx, wy + TILE/2 - h);
+      ctx.lineTo(wx, wy + TILE/2);
+      ctx.lineTo(wx - TILE/2, wy + TILE/4);
+      ctx.lineTo(wx - TILE/2, wy + TILE/4 - h);
+      ctx.closePath();
+      ctx.fill();
+    }
+    
+    // Add outline for definition
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(wx, wy - h);
+    ctx.lineTo(wx + TILE/2, wy + TILE/4 - h);
+    ctx.lineTo(wx, wy + TILE/2 - h);
+    ctx.lineTo(wx - TILE/2, wy + TILE/4 - h);
+    ctx.closePath();
+    ctx.stroke();
+  }
+  
+  function drawSprite(wx, wy, width, height, color, shadowColor) {
+    // Draw shadow
+    ctx.fillStyle = shadowColor || 'rgba(0,0,0,0.3)';
+    ctx.fillRect(wx - width/2 + 2, wy + 2, width, height/3);
+    
+    // Draw main sprite
+    ctx.fillStyle = color;
+    ctx.fillRect(wx - width/2, wy - height, width, height);
+    
+    // Add highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(wx - width/2, wy - height, width/3, height);
+  }
+
   function draw(){
     // camera follows
     camera.x += (player.x - VIEW_W/2 - camera.x)*0.12;
@@ -461,104 +550,123 @@
     camera.x = Math.max(0, Math.min(camera.x, MAP_W*TILE - VIEW_W));
     camera.y = Math.max(0, Math.min(camera.y, MAP_H*TILE - VIEW_H));
 
-    // Background tiles
-    ctx.clearRect(0,0,VIEW_W,VIEW_H);
-    const x0 = Math.floor(camera.x/TILE), y0 = Math.floor(camera.y/TILE);
-    const x1 = Math.ceil((camera.x+VIEW_W)/TILE), y1 = Math.ceil((camera.y+VIEW_H)/TILE);
+    // Clear with gradient sky
+    const gradient = ctx.createLinearGradient(0, 0, 0, VIEW_H);
+    gradient.addColorStop(0, '#87CEEB');
+    gradient.addColorStop(1, '#DEB887');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-    for (let y=y0;y<y1;y++){
-      for (let x=x0;x<x1;x++){
-        if (!inBounds(x,y)) continue;
-        const t = map[idx(x,y)];
-        const wx = x*TILE - camera.x;
-        const wy = y*TILE - camera.y;
+    // Calculate visible tiles
+    const x0 = Math.floor(camera.x/TILE) - 2, y0 = Math.floor(camera.y/TILE) - 2;
+    const x1 = Math.ceil((camera.x+VIEW_W)/TILE) + 2, y1 = Math.ceil((camera.y+VIEW_H)/TILE) + 2;
 
-        // base sand
-        ctx.fillStyle = '#d7c48d';
-        ctx.fillRect(wx,wy,TILE,TILE);
+    // Draw tiles in isometric order (back to front)
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        if (!inBounds(x, y)) continue;
+        
+        const t = map[idx(x, y)];
+        const iso = toIso(x, y);
+        const wx = iso.x + VIEW_W/2 - camera.x/2;
+        const wy = iso.y + VIEW_H/3 - camera.y/3;
 
-        // subtle noise lines
-        ctx.fillStyle = '#ceb87b';
-        if ((x+y)%5===0) ctx.fillRect(wx, wy+TILE-3, TILE, 2);
+        // Skip if off screen
+        if (wx < -TILE || wy < -TILE || wx > VIEW_W + TILE || wy > VIEW_H + TILE) continue;
 
-        if (t===T.WALL){
-          ctx.fillStyle = '#2e2e33';
-          ctx.fillRect(wx,wy,TILE,TILE);
-          ctx.fillStyle = '#42424b';
-          ctx.fillRect(wx+4,wy+4,TILE-8,TILE-8);
-        } else if (t===T.EXCHANGE){
-          ctx.fillStyle = '#1a2130';
-          ctx.fillRect(wx,wy,TILE,TILE);
-          // bank icon
-          ctx.fillStyle = '#9ad0ff';
-          ctx.fillRect(wx+8,wy+6,16,20);
-          ctx.fillStyle = '#0f141d';
-          ctx.fillRect(wx+10,wy+10,12,10);
-        } else if (t===T.SCAV){
-          ctx.globalAlpha = 0.18;
-          ctx.fillStyle = '#4caf50';
-          ctx.fillRect(wx,wy,TILE,TILE);
-          ctx.globalAlpha = 1;
-        } else if (t===T.VIPER){
-          ctx.globalAlpha = 0.18;
-          ctx.fillStyle = '#e74c3c';
-          ctx.fillRect(wx,wy,TILE,TILE);
-          ctx.globalAlpha = 1;
-        } else if (t===T.CRYST){
-          ctx.globalAlpha = 0.18;
-          ctx.fillStyle = '#a66bff';
-          ctx.fillRect(wx,wy,TILE,TILE);
-          ctx.globalAlpha = 1;
-        } else if (t===T.ELITE){
-          ctx.globalAlpha = 0.20;
-          ctx.fillStyle = '#22354a';
-          ctx.fillRect(wx,wy,TILE,TILE);
-          ctx.globalAlpha = 1;
+        if (t === T.WALL) {
+          // Rocky wall with height
+          drawIsometricTile(wx, wy, 20, '#5a5a5f', '#404045', '#2e2e33');
+        } else if (t === T.EXCHANGE) {
+          // Exchange building
+          drawIsometricTile(wx, wy, 0, '#1a2130', '#141a26', '#0f141d');
+          // Bank building on top
+          drawIsometricTile(wx, wy, 25, '#4a90e2', '#3a7bc8', '#2a5f9e');
+          // Add bank symbol
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '12px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('$', wx, wy - 15);
+        } else if (t === T.SCAV) {
+          // Scavenger territory - green tinted ground
+          drawIsometricTile(wx, wy, 0, '#8fbc8f', '#7a9f7a', '#659965');
+        } else if (t === T.VIPER) {
+          // Viper territory - red tinted ground
+          drawIsometricTile(wx, wy, 0, '#cd853f', '#b8763a', '#a36735');
+        } else if (t === T.CRYST) {
+          // Crystal territory - purple tinted ground
+          drawIsometricTile(wx, wy, 0, '#dda0dd', '#c48ec4', '#ab7cab');
+        } else if (t === T.ELITE) {
+          // Elite city - dark metallic
+          drawIsometricTile(wx, wy, 0, '#36454f', '#2c3840', '#222b31');
+        } else {
+          // Regular sand/wasteland
+          drawIsometricTile(wx, wy, 0, '#deb887', '#c9a876', '#b49865');
         }
       }
     }
 
-    // Resources
-    for (const r of resources){
-      if (r.hp<=0) continue;
-      const wx = r.x*TILE - camera.x;
-      const wy = r.y*TILE - camera.y;
-      if (wx<-TILE||wy<-TILE||wx>VIEW_W||wy>VIEW_H) continue;
-      ctx.fillStyle = '#7a6b52';
-      ctx.fillRect(wx+6,wy+8,20,16);
-      ctx.strokeStyle = '#4c3f2a';
-      ctx.strokeRect(wx+6,wy+8,20,16);
+    // Draw resources (scrap piles)
+    for (const r of resources) {
+      if (r.hp <= 0) continue;
+      const iso = toIso(r.x, r.y);
+      const wx = iso.x + VIEW_W/2 - camera.x/2;
+      const wy = iso.y + VIEW_H/3 - camera.y/3;
+      
+      if (wx < -TILE || wy < -TILE || wx > VIEW_W + TILE || wy > VIEW_H + TILE) continue;
+      
+      // Scrap pile sprite
+      drawSprite(wx, wy, 16, 12, '#8b7355', 'rgba(0,0,0,0.4)');
+      // Add some detail
+      ctx.fillStyle = '#a0895f';
+      ctx.fillRect(wx - 6, wy - 8, 3, 2);
+      ctx.fillRect(wx + 2, wy - 6, 4, 3);
     }
 
-    // Raiders
-    for (const b of raiders){
-      const wx = b.x - camera.x, wy=b.y - camera.y;
-      if (wx<-20||wy<-20||wx>VIEW_W+20||wy>VIEW_H+20) continue;
-      ctx.fillStyle = '#6b1f1f';
-      ctx.beginPath();
-      ctx.arc(wx,wy,10,0,Math.PI*2);
-      ctx.fill();
-      ctx.fillStyle = '#b44';
-      ctx.fillRect(wx-5, wy-12, 10, 4);
+    // Draw raiders
+    for (const b of raiders) {
+      const iso = toIso(b.x/TILE, b.y/TILE);
+      const wx = iso.x + VIEW_W/2 - camera.x/2;
+      const wy = iso.y + VIEW_H/3 - camera.y/3;
+      
+      if (wx < -30 || wy < -30 || wx > VIEW_W + 30 || wy > VIEW_H + 30) continue;
+      
+      // Raider sprite (humanoid)
+      drawSprite(wx, wy, 12, 18, '#8b0000', 'rgba(0,0,0,0.5)');
+      // Add helmet
+      ctx.fillStyle = '#696969';
+      ctx.fillRect(wx - 6, wy - 20, 12, 6);
     }
 
-    // Player
-    ctx.fillStyle = '#2b7cff';
-    ctx.beginPath();
-    ctx.arc(player.x - camera.x, player.y - camera.y, 10, 0, Math.PI*2);
-    ctx.fill();
-    ctx.strokeStyle = '#0f1b2e';
-    ctx.stroke();
+    // Draw player
+    const playerIso = toIso(player.x/TILE, player.y/TILE);
+    const playerWx = playerIso.x + VIEW_W/2 - camera.x/2;
+    const playerWy = playerIso.y + VIEW_H/3 - camera.y/3;
+    
+    // Player sprite (more detailed)
+    drawSprite(playerWx, playerWy, 14, 20, '#4169e1', 'rgba(0,0,0,0.5)');
+    // Add player details
+    ctx.fillStyle = '#fdbcb4'; // skin tone
+    ctx.fillRect(playerWx - 4, playerWy - 22, 8, 6); // head
+    ctx.fillStyle = '#8b4513'; // hair
+    ctx.fillRect(playerWx - 5, playerWy - 24, 10, 4);
 
-    // Target path
-    if (player.path.length){
-      ctx.strokeStyle = '#0b3a6b';
+    // Draw movement path
+    if (player.path.length) {
+      ctx.strokeStyle = 'rgba(65, 105, 225, 0.6)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
       ctx.beginPath();
-      ctx.moveTo(player.x - camera.x, player.y - camera.y);
-      for (const p of player.path){
-        ctx.lineTo(p.x - camera.x, p.y - camera.y);
+      
+      let lastIso = toIso(player.x/TILE, player.y/TILE);
+      ctx.moveTo(lastIso.x + VIEW_W/2 - camera.x/2, lastIso.y + VIEW_H/3 - camera.y/3);
+      
+      for (const p of player.path) {
+        const pathIso = toIso(p.x/TILE, p.y/TILE);
+        ctx.lineTo(pathIso.x + VIEW_W/2 - camera.x/2, pathIso.y + VIEW_H/3 - camera.y/3);
       }
       ctx.stroke();
+      ctx.setLineDash([]);
     }
 
     drawMinimap();
