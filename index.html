@@ -115,7 +115,22 @@
       </ul>
     </details>
 
-    <div class="muted" style="font-size:12px">Made for GitHub Pages • Click-to-move • Minimap • Local save</div>
+    <!-- Chat System -->
+    <div style="background:#121319; border:1px solid #2a2e37; border-radius:8px; padding:8px; margin-top:8px;">
+      <div style="color:#cfd2dc; font-size:14px; font-weight:bold; margin-bottom:6px;">Global Chat</div>
+      <div id="chatBox" style="height:120px; overflow-y:auto; background:#0a0b0f; border:1px solid #1a1d24; border-radius:4px; padding:6px; font-size:12px; font-family:monospace;">
+        <!-- Chat messages appear here -->
+      </div>
+      <div style="margin-top:6px; display:flex; align-items:center; gap:4px;">
+        <span style="color:#f6c66a; font-weight:bold;">UNNAMED</span>
+        <span style="color:#a0a3ad;">:</span>
+        <span id="chatPrompt" style="color:#666; font-style:italic;">PRESS ENTER TO START TYPING</span>
+        <span id="chatInput" style="color:#eaeaf0; display:none;"></span>
+        <span id="chatCursor" style="color:#eaeaf0; display:none;">|</span>
+      </div>
+    </div>
+
+    <div class="muted" style="font-size:12px; margin-top:8px;">Made for GitHub Pages • Click-to-move • Minimap • Local save • Arrow keys rotate camera</div>
   </div>
 </div>
 
@@ -337,8 +352,18 @@
     return [];
   }
 
-  // ---------- Input (click to move) ----------
-  let camera = { x: player.x - VIEW_W/2, y: player.y - VIEW_H/2 };
+  // ---------- Input (click to move & camera) ----------
+  let camera = { 
+    x: player.x - VIEW_W/2, 
+    y: player.y - VIEW_H/2,
+    rotation: 0  // 0=North, 1=East, 2=South, 3=West
+  };
+  
+  // Chat system
+  let chatMessages = [];
+  let playerMessages = new Map(); // playerId -> {message, timestamp}
+  let chatInput = '';
+  let chatActive = false;
   
   // Convert screen coordinates to isometric tile coordinates
   function screenToTile(screenX, screenY) {
@@ -353,7 +378,20 @@
     return { x: tileX, y: tileY };
   }
   
+  // Rotate coordinates based on camera rotation
+  function rotateCoords(x, y) {
+    switch(camera.rotation) {
+      case 0: return {x, y}; // North
+      case 1: return {x: -y, y: x}; // East  
+      case 2: return {x: -x, y: -y}; // South
+      case 3: return {x: y, y: -x}; // West
+      default: return {x, y};
+    }
+  }
+  
   cvs.addEventListener('click', e => {
+    if (chatActive) return; // Don't move while typing
+    
     const rect = cvs.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
@@ -370,9 +408,59 @@
     player.path = path.map(p => ({x: p.x*TILE + TILE/2, y: p.y*TILE + TILE/2}));
   });
 
-  // Keyboard: I = inventory
-  window.addEventListener('keydown', e=>{
-    if (e.key.toLowerCase()==='i') openInventory();
+  // Keyboard controls
+  const keys = {};
+  window.addEventListener('keydown', e => {
+    keys[e.key.toLowerCase()] = true;
+    
+    // Chat system
+    if (e.key === 'Enter') {
+      if (!chatActive) {
+        // Start typing
+        chatActive = true;
+        chatInput = '';
+        e.preventDefault();
+      } else {
+        // Send message
+        if (chatInput.trim()) {
+          const message = {
+            player: 'UNNAMED',
+            text: chatInput.trim(),
+            timestamp: Date.now(),
+            x: player.x,
+            y: player.y
+          };
+          chatMessages.push(message);
+          playerMessages.set('player', {message: chatInput.trim(), timestamp: Date.now()});
+          
+          // Keep only last 50 messages
+          if (chatMessages.length > 50) chatMessages.shift();
+        }
+        chatActive = false;
+        chatInput = '';
+        e.preventDefault();
+      }
+    } else if (e.key === 'Escape' && chatActive) {
+      // Cancel typing
+      chatActive = false;
+      chatInput = '';
+      e.preventDefault();
+    } else if (chatActive && e.key.length === 1) {
+      // Add character to chat input
+      chatInput += e.key;
+      e.preventDefault();
+    } else if (chatActive && e.key === 'Backspace') {
+      // Remove character
+      chatInput = chatInput.slice(0, -1);
+      e.preventDefault();
+    }
+    
+    // Other controls
+    if (e.key.toLowerCase() === 'i' && !chatActive) openInventory();
+  });
+  
+  window.addEventListener('keyup', e => {
+    keys[e.key.toLowerCase()] = false;
   });
 
   // ---------- Gameplay ----------
@@ -668,8 +756,91 @@
       ctx.stroke();
       ctx.setLineDash([]);
     }
+    
+    // Draw speech bubbles
+    const playerMsg = playerMessages.get('player');
+    if (playerMsg && Date.now() - playerMsg.timestamp < 5000) { // Show for 5 seconds
+      const playerIso = toIso(player.x/TILE, player.y/TILE);
+      const bubbleX = playerIso.x + VIEW_W/2 - camera.x/2;
+      const bubbleY = playerIso.y + VIEW_H/3 - camera.y/3 - 40;
+      
+      drawSpeechBubble(bubbleX, bubbleY, playerMsg.message);
+    }
 
     drawMinimap();
+  }
+  
+  // Draw speech bubble
+  function drawSpeechBubble(x, y, text) {
+    const padding = 8;
+    const maxWidth = 150;
+    
+    // Measure text
+    ctx.font = '12px Arial';
+    const lines = wrapText(text, maxWidth);
+    const lineHeight = 14;
+    const bubbleWidth = Math.min(maxWidth, Math.max(...lines.map(line => ctx.measureText(line).width))) + padding * 2;
+    const bubbleHeight = lines.length * lineHeight + padding * 2;
+    
+    // Draw bubble background
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    
+    // Rounded rectangle (manual implementation for compatibility)
+    const radius = 6;
+    const rectX = x - bubbleWidth/2;
+    const rectY = y - bubbleHeight;
+    
+    ctx.beginPath();
+    ctx.moveTo(rectX + radius, rectY);
+    ctx.lineTo(rectX + bubbleWidth - radius, rectY);
+    ctx.quadraticCurveTo(rectX + bubbleWidth, rectY, rectX + bubbleWidth, rectY + radius);
+    ctx.lineTo(rectX + bubbleWidth, rectY + bubbleHeight - radius);
+    ctx.quadraticCurveTo(rectX + bubbleWidth, rectY + bubbleHeight, rectX + bubbleWidth - radius, rectY + bubbleHeight);
+    ctx.lineTo(rectX + radius, rectY + bubbleHeight);
+    ctx.quadraticCurveTo(rectX, rectY + bubbleHeight, rectX, rectY + bubbleHeight - radius);
+    ctx.lineTo(rectX, rectY + radius);
+    ctx.quadraticCurveTo(rectX, rectY, rectX + radius, rectY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    
+    // Draw pointer
+    ctx.beginPath();
+    ctx.moveTo(x - 6, y);
+    ctx.lineTo(x, y + 8);
+    ctx.lineTo(x + 6, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    
+    // Draw text
+    ctx.fillStyle = '#333';
+    ctx.textAlign = 'center';
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], x, y - bubbleHeight + padding + (i + 1) * lineHeight);
+    }
+  }
+  
+  // Wrap text to fit in bubble
+  function wrapText(text, maxWidth) {
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      const testLine = currentLine + (currentLine ? ' ' : '') + word;
+      if (ctx.measureText(testLine).width <= maxWidth) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+    
+    return lines;
   }
 
   function drawMinimap(){
@@ -718,8 +889,20 @@
     const dt = (now - last)/1000;
     last = now;
 
+    // Handle camera rotation with arrow keys
+    if (!chatActive) {
+      if (keys['arrowleft']) {
+        camera.rotation = (camera.rotation + 3) % 4; // Counter-clockwise
+        keys['arrowleft'] = false; // Prevent rapid rotation
+      }
+      if (keys['arrowright']) {
+        camera.rotation = (camera.rotation + 1) % 4; // Clockwise
+        keys['arrowright'] = false;
+      }
+    }
+
     // Move player along path
-    if (player.path.length){
+    if (player.path.length && !chatActive){
       const target = player.path[0];
       const dx = target.x - player.x;
       const dy = target.y - player.y;
@@ -789,9 +972,41 @@
 
     draw();
     updateUI();
+    updateChat();
     tryEndgameUnlock();
 
     requestAnimationFrame(tick);
+  }
+  
+  // Update chat UI
+  function updateChat() {
+    const chatBox = document.getElementById('chatBox');
+    const chatPrompt = document.getElementById('chatPrompt');
+    const chatInputEl = document.getElementById('chatInput');
+    const chatCursor = document.getElementById('chatCursor');
+    
+    // Update chat input display
+    if (chatActive) {
+      chatPrompt.style.display = 'none';
+      chatInputEl.style.display = 'inline';
+      chatCursor.style.display = 'inline';
+      chatInputEl.textContent = chatInput;
+      
+      // Blinking cursor
+      chatCursor.style.opacity = Math.sin(Date.now() / 300) > 0 ? '1' : '0.3';
+    } else {
+      chatPrompt.style.display = 'inline';
+      chatInputEl.style.display = 'none';
+      chatCursor.style.display = 'none';
+    }
+    
+    // Update chat messages
+    chatBox.innerHTML = chatMessages.slice(-10).map(msg => 
+      `<div style="margin-bottom:2px;"><span style="color:#f6c66a;">${msg.player}</span><span style="color:#a0a3ad;">:</span> <span style="color:#eaeaf0;">${msg.text}</span></div>`
+    ).join('');
+    
+    // Auto-scroll to bottom
+    chatBox.scrollTop = chatBox.scrollHeight;
   }
 
   function updateUI(){
