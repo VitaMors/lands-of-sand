@@ -76,8 +76,17 @@
     <div id="gameContainer">
         <canvas id="minimap" width="200" height="200"></canvas>
         <div id="chatPanel">
-            <div class="chat-message"><span class="npc-name">Shopkeeper:</span> Welcome to my shop!</div>
-            <div class="chat-message"><span class="player-name">Player:</span> Hello there!</div>
+            <div style="color:#cfd2dc; font-size:14px; font-weight:bold; margin-bottom:6px;">Global Chat</div>
+            <div id="chatBox" style="height:80px; overflow-y:auto; background:#0a0b0f; border:1px solid #1a1d24; border-radius:4px; padding:6px; font-size:12px; font-family:monospace; margin-bottom:6px;">
+                <!-- Chat messages appear here -->
+            </div>
+            <div style="display:flex; align-items:center; gap:4px;">
+                <span style="color:#f6c66a; font-weight:bold;">UNNAMED</span>
+                <span style="color:#a0a3ad;">:</span>
+                <span id="chatPrompt" style="color:#666; font-style:italic;">PRESS ENTER TO START TYPING</span>
+                <span id="chatInput" style="color:#eaeaf0; display:none;"></span>
+                <span id="chatCursor" style="color:#eaeaf0; display:none;">|</span>
+            </div>
         </div>
         <div id="walkHere">Walk here</div>
     </div>

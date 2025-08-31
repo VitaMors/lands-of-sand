@@ -7,6 +7,12 @@ let ground, groundGrid = [];
 let playerTarget = null;
 let pathfinding = [];
 
+// Chat system variables
+let chatActive = false;
+let chatInput = '';
+let chatMessages = [];
+let chatCursorVisible = true;
+
 // Game constants
 const TILE_SIZE = 2;
 const GRID_SIZE = 32;
@@ -73,6 +79,29 @@ function init() {
     window.addEventListener('resize', onWindowResize);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('click', onClick);
+    window.addEventListener('keydown', onKeyDown);
+    
+    // Initialize chat display
+    updateChatDisplay();
+    
+    // Add some initial chat messages
+    chatMessages.push({
+        name: 'Shopkeeper',
+        message: 'Welcome to my shop!',
+        type: 'npc'
+    });
+    chatMessages.push({
+        name: 'Trader',
+        message: 'Best prices in town!',
+        type: 'npc'
+    });
+    updateChatBox();
+    
+    // Start cursor blinking
+    setInterval(() => {
+        chatCursorVisible = !chatCursorVisible;
+        if (chatActive) updateChatDisplay();
+    }, 500);
 
     // Start game loop
     animate();
@@ -478,6 +507,104 @@ function onClick(event) {
     }
 
     document.getElementById('walkHere').style.display = 'none';
+}
+
+function onKeyDown(event) {
+    const key = event.key;
+    
+    if (key === 'Enter') {
+        if (!chatActive) {
+            // Start typing
+            chatActive = true;
+            chatInput = '';
+            updateChatDisplay();
+        } else {
+            // Send message
+            if (chatInput.trim()) {
+                chatMessages.push({
+                    name: 'UNNAMED',
+                    message: chatInput.trim(),
+                    type: 'player'
+                });
+                
+                // Update chat box with new message
+                updateChatBox();
+            }
+            
+            // Stop typing
+            chatActive = false;
+            chatInput = '';
+            updateChatDisplay();
+        }
+        event.preventDefault();
+    } else if (key === 'Escape' && chatActive) {
+        // Cancel typing
+        chatActive = false;
+        chatInput = '';
+        updateChatDisplay();
+        event.preventDefault();
+    } else if (chatActive) {
+        // Handle text input
+        if (key === 'Backspace') {
+            chatInput = chatInput.slice(0, -1);
+            updateChatDisplay();
+        } else if (key.length === 1) {
+            // Regular character
+            chatInput += key;
+            updateChatDisplay();
+        }
+        event.preventDefault();
+    }
+}
+
+function updateChatDisplay() {
+    const chatPrompt = document.getElementById('chatPrompt');
+    const chatInputEl = document.getElementById('chatInput');
+    const chatCursor = document.getElementById('chatCursor');
+    
+    if (!chatActive) {
+        // Show prompt
+        chatPrompt.style.display = 'inline';
+        chatPrompt.textContent = 'PRESS ENTER TO START TYPING';
+        chatInputEl.style.display = 'none';
+        chatCursor.style.display = 'none';
+    } else {
+        // Show input
+        chatPrompt.style.display = 'none';
+        chatInputEl.style.display = 'inline';
+        chatInputEl.textContent = chatInput;
+        chatCursor.style.display = chatCursorVisible ? 'inline' : 'none';
+    }
+}
+
+function updateChatBox() {
+    const chatBox = document.getElementById('chatBox');
+    
+    // Clear existing messages
+    chatBox.innerHTML = '';
+    
+    // Add recent messages (keep last 10)
+    const recentMessages = chatMessages.slice(-10);
+    
+    recentMessages.forEach(msg => {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'chat-message';
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.className = msg.type === 'player' ? 'player-name' : 'npc-name';
+        nameSpan.textContent = msg.name + ':';
+        
+        const messageSpan = document.createElement('span');
+        messageSpan.textContent = ' ' + msg.message;
+        messageSpan.style.color = '#FFFFFF';
+        
+        messageDiv.appendChild(nameSpan);
+        messageDiv.appendChild(messageSpan);
+        chatBox.appendChild(messageDiv);
+    });
+    
+    // Scroll to bottom
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
 // Game loop
