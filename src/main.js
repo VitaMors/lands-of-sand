@@ -84,8 +84,9 @@ function init() {
     window.addEventListener('resize', onWindowResize);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('click', onClick);
-    window.addEventListener('keydown', onKeyDown);
-    document.addEventListener('keydown', onKeyDown); // Fallback
+    
+    // Use only document keydown to avoid conflicts
+    document.addEventListener('keydown', onKeyDown);
     
     console.log('Event listeners attached successfully');
     
@@ -114,9 +115,7 @@ function init() {
     // Set initial camera position
     updateCameraPosition();
 
-    // Ensure the game has focus for keyboard events
-    document.body.focus();
-    document.body.setAttribute('tabindex', '0');
+    // Ensure keyboard events work
     document.body.style.outline = 'none';
 
     // Start game loop

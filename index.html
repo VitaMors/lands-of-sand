@@ -36,14 +36,15 @@
             bottom: 10px;
             left: 10px;
             width: 400px;
-            height: 120px;
+            height: 140px;
             background: rgba(0, 0, 0, 0.8);
             border: 2px solid #8B4513;
             color: #FFFFFF;
             font-size: 12px;
-            padding: 5px;
-            overflow-y: auto;
+            padding: 8px;
             z-index: 100;
+            display: flex;
+            flex-direction: column;
         }
         
         .chat-message {
@@ -76,11 +77,11 @@
     <div id="gameContainer">
         <canvas id="minimap" width="200" height="200"></canvas>
         <div id="chatPanel">
-            <div style="color:#cfd2dc; font-size:14px; font-weight:bold; margin-bottom:6px;">Global Chat</div>
-            <div id="chatBox" style="height:80px; overflow-y:auto; background:#0a0b0f; border:1px solid #1a1d24; border-radius:4px; padding:6px; font-size:12px; font-family:monospace; margin-bottom:6px;">
+            <div style="color:#cfd2dc; font-size:14px; font-weight:bold; margin-bottom:4px; flex-shrink:0;">Global Chat</div>
+            <div id="chatBox" style="flex:1; overflow-y:auto; background:#0a0b0f; border:1px solid #1a1d24; border-radius:4px; padding:6px; font-size:12px; font-family:monospace; margin-bottom:4px; min-height:70px;">
                 <!-- Chat messages appear here -->
             </div>
-            <div style="display:flex; align-items:center; gap:4px;">
+            <div style="display:flex; align-items:center; gap:4px; flex-shrink:0; padding:2px 0;">
                 <span style="color:#f6c66a; font-weight:bold;">UNNAMED</span>
                 <span style="color:#a0a3ad;">:</span>
                 <span id="chatPrompt" style="color:#666; font-style:italic;">PRESS ENTER TO START TYPING</span>
