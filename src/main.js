@@ -53,10 +53,21 @@ function init() {
     scene.add(directionalLight);
 
     // Create world
+    console.log('Creating ground...');
     createGround();
+    console.log('Ground created successfully');
+    
+    console.log('Creating buildings...');
     createBuildings();
+    console.log('Buildings created successfully');
+    
+    console.log('Creating player...');
     createPlayer();
+    console.log('Player created successfully');
+    
+    console.log('Creating NPCs...');
     createNPCs();
+    console.log('NPCs created successfully');
 
     // Event listeners
     window.addEventListener('resize', onWindowResize);
@@ -108,8 +119,7 @@ function createGround() {
     // Create ground geometry
     const groundGeometry = new THREE.PlaneGeometry(GRID_SIZE * TILE_SIZE, GRID_SIZE * TILE_SIZE);
     const groundMaterial = new THREE.MeshLambertMaterial({ 
-        map: cobbleTexture,
-        flatShading: true 
+        map: cobbleTexture
     });
     
     ground = new THREE.Mesh(groundGeometry, groundMaterial);
@@ -159,8 +169,7 @@ function createHouse() {
     // House base (white plaster)
     const baseGeometry = new THREE.BoxGeometry(4, 3, 4);
     const baseMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0xFFF8DC,
-        flatShading: true 
+        color: 0xFFF8DC
     });
     const base = new THREE.Mesh(baseGeometry, baseMaterial);
     base.position.y = 1.5;
@@ -169,8 +178,7 @@ function createHouse() {
 
     // Brown timber beams
     const beamMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0x8B4513,
-        flatShading: true 
+        color: 0x8B4513
     });
 
     // Vertical beams
@@ -192,8 +200,7 @@ function createHouse() {
     // Roof
     const roofGeometry = new THREE.ConeGeometry(3, 2, 4);
     const roofMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0x8B4513,
-        flatShading: true 
+        color: 0x8B4513
     });
     const roof = new THREE.Mesh(roofGeometry, roofMaterial);
     roof.position.y = 4;
@@ -210,8 +217,7 @@ function createMarketStall() {
     // Stall counter
     const counterGeometry = new THREE.BoxGeometry(3, 0.8, 1.5);
     const counterMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0xD2691E,
-        flatShading: true 
+        color: 0xD2691E
     });
     const counter = new THREE.Mesh(counterGeometry, counterMaterial);
     counter.position.y = 0.4;
@@ -220,8 +226,7 @@ function createMarketStall() {
 
     // Canopy poles
     const poleMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0x8B4513,
-        flatShading: true 
+        color: 0x8B4513
     });
     
     for (let i = 0; i < 4; i++) {
@@ -235,7 +240,6 @@ function createMarketStall() {
     const canopyGeometry = new THREE.PlaneGeometry(3.5, 2.5);
     const canopyMaterial = new THREE.MeshLambertMaterial({ 
         color: 0xFF6347,
-        flatShading: true,
         side: THREE.DoubleSide
     });
     const canopy = new THREE.Mesh(canopyGeometry, canopyMaterial);
@@ -250,8 +254,7 @@ function createPlayer() {
     // Simple cylinder player (capsule not available in r128)
     const geometry = new THREE.CylinderGeometry(0.3, 0.3, 1.6, 8);
     const material = new THREE.MeshLambertMaterial({ 
-        color: 0x4169E1,
-        flatShading: true 
+        color: 0x4169E1
     });
     
     player = new THREE.Mesh(geometry, material);
@@ -290,8 +293,7 @@ function createNPC(color) {
     // Body (cylinder instead of capsule)
     const bodyGeometry = new THREE.CylinderGeometry(0.25, 0.25, 1.4, 6);
     const bodyMaterial = new THREE.MeshLambertMaterial({ 
-        color: color,
-        flatShading: true 
+        color: color
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.castShadow = true;
@@ -300,8 +302,7 @@ function createNPC(color) {
     // Head
     const headGeometry = new THREE.SphereGeometry(0.2, 6, 6);
     const headMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0xFFDBAD,
-        flatShading: true 
+        color: 0xFFDBAD
     });
     const head = new THREE.Mesh(headGeometry, headMaterial);
     head.position.y = 0.7;
