@@ -118,8 +118,9 @@ function createGround() {
 
     // Create ground geometry
     const groundGeometry = new THREE.PlaneGeometry(GRID_SIZE * TILE_SIZE, GRID_SIZE * TILE_SIZE);
-    const groundMaterial = new THREE.MeshLambertMaterial({ 
-        map: cobbleTexture
+    const groundMaterial = new THREE.MeshPhongMaterial({ 
+        map: cobbleTexture,
+        flatShading: true
     });
     
     ground = new THREE.Mesh(groundGeometry, groundMaterial);
@@ -168,8 +169,9 @@ function createHouse() {
 
     // House base (white plaster)
     const baseGeometry = new THREE.BoxGeometry(4, 3, 4);
-    const baseMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0xFFF8DC
+    const baseMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0xFFF8DC,
+        flatShading: true
     });
     const base = new THREE.Mesh(baseGeometry, baseMaterial);
     base.position.y = 1.5;
@@ -177,8 +179,9 @@ function createHouse() {
     group.add(base);
 
     // Brown timber beams
-    const beamMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0x8B4513
+    const beamMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x8B4513,
+        flatShading: true
     });
 
     // Vertical beams
@@ -199,8 +202,9 @@ function createHouse() {
 
     // Roof
     const roofGeometry = new THREE.ConeGeometry(3, 2, 4);
-    const roofMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0x8B4513
+    const roofMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x8B4513,
+        flatShading: true
     });
     const roof = new THREE.Mesh(roofGeometry, roofMaterial);
     roof.position.y = 4;
@@ -216,8 +220,9 @@ function createMarketStall() {
 
     // Stall counter
     const counterGeometry = new THREE.BoxGeometry(3, 0.8, 1.5);
-    const counterMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0xD2691E
+    const counterMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0xD2691E,
+        flatShading: true
     });
     const counter = new THREE.Mesh(counterGeometry, counterMaterial);
     counter.position.y = 0.4;
@@ -225,8 +230,9 @@ function createMarketStall() {
     group.add(counter);
 
     // Canopy poles
-    const poleMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0x8B4513
+    const poleMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0x8B4513,
+        flatShading: true
     });
     
     for (let i = 0; i < 4; i++) {
@@ -238,8 +244,9 @@ function createMarketStall() {
 
     // Canopy
     const canopyGeometry = new THREE.PlaneGeometry(3.5, 2.5);
-    const canopyMaterial = new THREE.MeshLambertMaterial({ 
+    const canopyMaterial = new THREE.MeshPhongMaterial({ 
         color: 0xFF6347,
+        flatShading: true,
         side: THREE.DoubleSide
     });
     const canopy = new THREE.Mesh(canopyGeometry, canopyMaterial);
@@ -253,8 +260,9 @@ function createMarketStall() {
 function createPlayer() {
     // Simple cylinder player (capsule not available in r128)
     const geometry = new THREE.CylinderGeometry(0.3, 0.3, 1.6, 8);
-    const material = new THREE.MeshLambertMaterial({ 
-        color: 0x4169E1
+    const material = new THREE.MeshPhongMaterial({ 
+        color: 0x4169E1,
+        flatShading: true
     });
     
     player = new THREE.Mesh(geometry, material);
@@ -292,8 +300,9 @@ function createNPC(color) {
 
     // Body (cylinder instead of capsule)
     const bodyGeometry = new THREE.CylinderGeometry(0.25, 0.25, 1.4, 6);
-    const bodyMaterial = new THREE.MeshLambertMaterial({ 
-        color: color
+    const bodyMaterial = new THREE.MeshPhongMaterial({ 
+        color: color,
+        flatShading: true
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.castShadow = true;
@@ -301,8 +310,9 @@ function createNPC(color) {
 
     // Head
     const headGeometry = new THREE.SphereGeometry(0.2, 6, 6);
-    const headMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0xFFDBAD
+    const headMaterial = new THREE.MeshPhongMaterial({ 
+        color: 0xFFDBAD,
+        flatShading: true
     });
     const head = new THREE.Mesh(headGeometry, headMaterial);
     head.position.y = 0.7;
