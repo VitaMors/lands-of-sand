@@ -413,6 +413,23 @@
   window.addEventListener('keydown', e => {
     keys[e.key.toLowerCase()] = true;
     keys[e.key] = true; // Also store original case
+    keys[e.code] = true; // Also store key code
+    
+    // Debug camera rotation
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      console.log('Arrow key pressed:', e.key, e.code);
+      if (!chatActive) {
+        if (e.key === 'ArrowLeft') {
+          camera.rotation = (camera.rotation + 3) % 4;
+          showToast(`Camera: ${['North', 'East', 'South', 'West'][camera.rotation]}`);
+        } else if (e.key === 'ArrowRight') {
+          camera.rotation = (camera.rotation + 1) % 4;
+          showToast(`Camera: ${['North', 'East', 'South', 'West'][camera.rotation]}`);
+        }
+        e.preventDefault();
+        return;
+      }
+    }
     
     // Chat system
     if (e.key === 'Enter') {
@@ -587,43 +604,19 @@
     ctx.closePath();
     ctx.fill();
     
-    // Add detailed textures based on tile type
+    // Add subtle textures based on tile type (much cleaner)
     if (tileType === 'crystal') {
-      // Crystal terrain with shimmering effect
-      ctx.fillStyle = 'rgba(186, 85, 211, 0.3)';
+      // Just a subtle crystal overlay
+      ctx.fillStyle = 'rgba(186, 85, 211, 0.15)';
       ctx.fill();
-      
-      // Add crystal shards
-      for (let i = 0; i < 5; i++) {
-        const crystalX = wx + (Math.random() - 0.5) * TILE * 0.6;
-        const crystalY = wy - h + (Math.random() - 0.5) * TILE * 0.3;
-        
-        ctx.fillStyle = `rgba(${200 + Math.random() * 55}, ${150 + Math.random() * 105}, 255, 0.7)`;
-        ctx.fillRect(crystalX, crystalY, 2, 3);
-        
-        // Add glow effect
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.fillRect(crystalX, crystalY, 1, 1);
-      }
     } else if (tileType === 'rock') {
-      // Detailed rock texture
-      for (let i = 0; i < 12; i++) {
-        const rockX = wx + (Math.random() - 0.5) * TILE * 0.8;
-        const rockY = wy - h + (Math.random() - 0.5) * TILE * 0.4;
-        const size = Math.random() * 3 + 1;
-        
-        ctx.fillStyle = `rgba(${100 + Math.random() * 50}, ${90 + Math.random() * 40}, ${80 + Math.random() * 30}, 0.6)`;
-        ctx.fillRect(rockX, rockY, size, size);
-      }
+      // Minimal rock texture
+      ctx.fillStyle = 'rgba(100, 90, 80, 0.2)';
+      ctx.fill();
     } else if (tileType === 'sand') {
-      // Detailed sand with varying colors
-      for (let i = 0; i < 15; i++) {
-        const sandX = wx + (Math.random() - 0.5) * TILE * 0.8;
-        const sandY = wy - h + (Math.random() - 0.5) * TILE * 0.4;
-        
-        ctx.fillStyle = `rgba(${180 + Math.random() * 40}, ${140 + Math.random() * 40}, ${100 + Math.random() * 30}, 0.4)`;
-        ctx.fillRect(sandX, sandY, 1, 1);
-      }
+      // Minimal sand texture
+      ctx.fillStyle = 'rgba(180, 140, 100, 0.1)';
+      ctx.fill();
     }
     
     // Draw right side with gradient (if height > 0)
@@ -752,15 +745,7 @@
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     
-    // Add atmospheric particles/mist
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-    for (let i = 0; i < 50; i++) {
-      const x = Math.random() * VIEW_W;
-      const y = Math.random() * VIEW_H;
-      ctx.beginPath();
-      ctx.arc(x, y, Math.random() * 2, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // Clean atmospheric effect (no particles)
 
     // Calculate visible tiles
     const x0 = Math.floor(camera.x/TILE) - 2, y0 = Math.floor(camera.y/TILE) - 2;
@@ -780,24 +765,20 @@
         if (wx < -TILE || wy < -TILE || wx > VIEW_W + TILE || wy > VIEW_H + TILE) continue;
 
         if (t === T.WALL) {
-          // Crystal rock formations (like RuneScape image)
-          const rockHeight = 30 + Math.sin((x + y) * 0.5) * 10;
+          // Clean crystal rock formations
+          const rockHeight = 25;
           drawIsometricTile(wx, wy, rockHeight, '#8A2BE2', '#7B68EE', '#6959CD', 'crystal_wall');
           
-          // Add large crystal formations on some rocks
-          if ((x + y) % 3 === 0) {
-            const crystalHeight = rockHeight + 15;
+          // Add fewer, cleaner crystal formations
+          if ((x + y) % 6 === 0) {
+            const crystalHeight = rockHeight + 8;
             ctx.fillStyle = '#DA70D6';
             ctx.beginPath();
             ctx.moveTo(wx, wy - crystalHeight);
-            ctx.lineTo(wx + 6, wy - rockHeight + 5);
-            ctx.lineTo(wx - 6, wy - rockHeight + 5);
+            ctx.lineTo(wx + 4, wy - rockHeight + 3);
+            ctx.lineTo(wx - 4, wy - rockHeight + 3);
             ctx.closePath();
             ctx.fill();
-            
-            // Crystal glow
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.fillRect(wx - 1, wy - crystalHeight + 2, 2, 8);
           }
         } else if (t === T.EXCHANGE) {
           // Exchange building in crystal theme
@@ -830,42 +811,27 @@
           // Viper territory - orange crystal desert
           drawIsometricTile(wx, wy, 0, '#FF8C00', '#DAA520', '#B8860B', 'crystal');
         } else if (t === T.CRYST) {
-          // Crystal territory - main purple crystal landscape (like the image!)
+          // Crystal territory - clean purple landscape
           drawIsometricTile(wx, wy, 0, '#BA55D3', '#9370DB', '#8B5CF6', 'crystal');
           
-          // Add large crystal clusters (matching the RuneScape image)
-          if ((x + y) % 5 === 0) {
-            const clusterHeight = 20 + Math.random() * 15;
+          // Add FEWER, more organized crystal clusters
+          if ((x + y) % 8 === 0) {
+            const clusterHeight = 18;
             
-            // Main crystal
+            // Single main crystal
             ctx.fillStyle = '#DDA0DD';
             ctx.beginPath();
             ctx.moveTo(wx, wy - clusterHeight);
-            ctx.lineTo(wx + 8, wy - 5);
-            ctx.lineTo(wx + 4, wy);
-            ctx.lineTo(wx - 4, wy);
-            ctx.lineTo(wx - 8, wy - 5);
+            ctx.lineTo(wx + 6, wy - 4);
+            ctx.lineTo(wx + 3, wy);
+            ctx.lineTo(wx - 3, wy);
+            ctx.lineTo(wx - 6, wy - 4);
             ctx.closePath();
             ctx.fill();
             
-            // Crystal highlights
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            ctx.beginPath();
-            ctx.moveTo(wx, wy - clusterHeight);
-            ctx.lineTo(wx + 3, wy - clusterHeight + 8);
-            ctx.lineTo(wx - 3, wy - clusterHeight + 8);
-            ctx.closePath();
-            ctx.fill();
-            
-            // Smaller crystals around
-            for (let j = 0; j < 3; j++) {
-              const smallX = wx + (Math.random() - 0.5) * 16;
-              const smallY = wy + (Math.random() - 0.5) * 8;
-              const smallHeight = 8 + Math.random() * 8;
-              
-              ctx.fillStyle = `rgba(${180 + Math.random() * 75}, ${140 + Math.random() * 115}, 255, 0.8)`;
-              ctx.fillRect(smallX, smallY - smallHeight, 3, smallHeight);
-            }
+            // Simple highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.fillRect(wx - 1, wy - clusterHeight + 2, 2, 6);
           }
         } else if (t === T.ELITE) {
           // Elite city - dark crystal tech
@@ -1077,21 +1043,7 @@
     const dt = (now - last)/1000;
     last = now;
 
-    // Handle camera rotation with arrow keys
-    if (!chatActive) {
-      if (keys['arrowleft'] || keys['ArrowLeft']) {
-        camera.rotation = (camera.rotation + 3) % 4; // Counter-clockwise
-        keys['arrowleft'] = false;
-        keys['ArrowLeft'] = false;
-        showToast(`Camera: ${['North', 'East', 'South', 'West'][camera.rotation]}`);
-      }
-      if (keys['arrowright'] || keys['ArrowRight']) {
-        camera.rotation = (camera.rotation + 1) % 4; // Clockwise
-        keys['arrowright'] = false;
-        keys['ArrowRight'] = false;
-        showToast(`Camera: ${['North', 'East', 'South', 'West'][camera.rotation]}`);
-      }
-    }
+    // Camera rotation is now handled in keydown event
 
     // Move player along path
     if (player.path.length && !chatActive){
