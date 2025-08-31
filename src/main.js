@@ -85,6 +85,9 @@ function init() {
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('click', onClick);
     window.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', onKeyDown); // Fallback
+    
+    console.log('Event listeners attached successfully');
     
     // Initialize chat display
     updateChatDisplay();
@@ -111,8 +114,15 @@ function init() {
     // Set initial camera position
     updateCameraPosition();
 
+    // Ensure the game has focus for keyboard events
+    document.body.focus();
+    document.body.setAttribute('tabindex', '0');
+    document.body.style.outline = 'none';
+
     // Start game loop
     animate();
+    
+    console.log('Game initialization complete!');
 }
 
 function createGround() {
@@ -527,6 +537,7 @@ function onClick(event) {
 
 function onKeyDown(event) {
     const key = event.key;
+    console.log('Key pressed:', key, 'Chat active:', chatActive);
     
     if (key === 'Enter') {
         if (!chatActive) {
@@ -550,6 +561,9 @@ function onKeyDown(event) {
                 if (player && player.userData) {
                     player.userData.chatText = message;
                     player.userData.chatTimer = 5.0; // Show for 5 seconds
+                    console.log('Player overhead text set:', message, 'Timer:', player.userData.chatTimer);
+                } else {
+                    console.log('Player or userData not available for overhead text');
                 }
                 
                 // Update chat box with new message
@@ -583,20 +597,24 @@ function onKeyDown(event) {
         // Camera controls (only when not typing in chat)
         if (key === 'ArrowLeft') {
             cameraAngle += Math.PI / 4; // Rotate 45 degrees left
+            console.log('Camera rotate left, new angle:', cameraAngle);
             updateCameraPosition();
             event.preventDefault();
         } else if (key === 'ArrowRight') {
             cameraAngle -= Math.PI / 4; // Rotate 45 degrees right
+            console.log('Camera rotate right, new angle:', cameraAngle);
             updateCameraPosition();
             event.preventDefault();
         } else if (key === 'ArrowUp') {
             // Optional: Zoom in slightly
             cameraDistance = Math.max(8, cameraDistance - 2);
+            console.log('Camera zoom in, new distance:', cameraDistance);
             updateCameraPosition();
             event.preventDefault();
         } else if (key === 'ArrowDown') {
             // Optional: Zoom out slightly
             cameraDistance = Math.min(16, cameraDistance + 2);
+            console.log('Camera zoom out, new distance:', cameraDistance);
             updateCameraPosition();
             event.preventDefault();
         }
@@ -720,12 +738,15 @@ function renderOverheadText() {
     try {
         // Render player overhead text
         if (player && player.userData && player.userData.chatTimer > 0) {
+            console.log('Rendering player overhead text:', player.userData.chatText, 'Timer:', player.userData.chatTimer);
             const vector = player.position.clone();
             vector.y += 2.5; // Slightly higher for player
             vector.project(camera);
 
             const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
             const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+
+            console.log('Overhead text position:', x, y);
 
             // Remove existing player chat element
             const existing = document.querySelector('.chat-overhead-player');
@@ -746,6 +767,7 @@ function renderOverheadText() {
             chatElement.style.transform = 'translate(-50%, -100%)';
             chatElement.textContent = player.userData.chatText;
             document.body.appendChild(chatElement);
+            console.log('Overhead text element added to DOM');
         } else {
             // Remove player chat element when timer expires
             const existing = document.querySelector('.chat-overhead-player');
