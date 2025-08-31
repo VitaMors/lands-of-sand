@@ -1,0 +1,955 @@
+here’s a single-file MVP you can drop into a GitHub repo and host with GitHub Pages. It’s called “Lands of Sand” and includes:
+
+RuneScape-style click-to-move on a grid
+
+Isometric-ish top-down camera feel
+
+Minimap (top-right) with player, hubs, resources & gang zones
+
+Gangs (join/switch), Wasteland Exchange, harvesting, credits, and basic stats (Fighting, Gathering, Magicx, Health)
+
+LocalStorage save/load (auto)
+
+Storyline relic drops from harvesting (low chance)
+
+Prestige endgame: when you max stats and collect relics + credits, you unlock The Elites cutscene and get a Teleport Ring to the hidden Elite City
+
+How to use
+
+Create a repo → add this file as index.html.
+
+Push → enable GitHub Pages (Settings → Pages → Deploy from branch).
+
+Open the Pages URL. Done.
+
+index.html (copy everything below)
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Lands of Sand — MVP</title>
+<style>
+  :root {
+    --bg: #0f0f12;
+    --panel: #17181d;
+    --ink: #eaeaf0;
+    --muted: #a0a3ad;
+    --accent: #f6c66a;
+    --danger: #ff6b6b;
+    --ok: #78e08f;
+    --elite: #9ad0ff;
+  }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji; }
+  #wrap { display:grid; grid-template-columns: 1fr 360px; gap:12px; padding:12px; box-sizing:border-box; height:100%; }
+  #stage { background:#0b0c10; border:1px solid #2a2e37; border-radius:10px; position:relative; overflow:hidden; }
+  #game { width:100%; height:100%; display:block; background:linear-gradient(#e4d1a1 60%, #d9c48b); image-rendering: pixelated; }
+  #minimap { position:absolute; right:10px; top:10px; width:170px; height:170px; border:2px solid #2a2e37; border-radius:8px; background:#0d0f13; image-rendering: pixelated; }
+  #ui { background:var(--panel); border:1px solid #2a2e37; border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:12px; overflow:auto; }
+  .bar { height:8px; background:#2a2e37; border-radius:999px; overflow:hidden; }
+  .bar > span { display:block; height:100%; background:linear-gradient(90deg, #76b852, #8DC26F); }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .tag { padding:2px 8px; border-radius:999px; background:#23252c; color:var(--muted); font-size:12px; }
+  .pill { padding:6px 10px; border-radius:999px; background:#22242b; border:1px solid #2f3440; color:#cfd2dc; cursor:pointer; user-select:none; }
+  .pill:hover { filter:brightness(1.1); }
+  .danger { border-color:#593336; color:#ffdede; }
+  .ok { border-color:#2e5235; color:#dfffe7; }
+  h2, h3 { margin:0; }
+  .muted { color:var(--muted); }
+  .grid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:8px; }
+  details { background:#121319; border:1px solid #2a2e37; border-radius:8px; padding:10px; }
+  summary { cursor:pointer; color:#cfd2dc; }
+  #toast { position:fixed; left:50%; transform:translateX(-50%); bottom:16px; background:#111217; color:#eaeaf0; padding:10px 14px; border:1px solid #2a2e37; border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,.4); pointer-events:none; opacity:0; transition:opacity .2s ease, transform .2s ease; }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(-6px); }
+  .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; border:1px solid #2a2e37; background:#14151b; padding:2px 6px; border-radius:6px; font-size:12px; color:#cfd2dc; }
+  .eliteGlow { text-shadow: 0 0 10px var(--elite), 0 0 18px var(--elite); color: var(--elite); }
+  @media (max-width: 1000px) {
+    #wrap { grid-template-columns: 1fr; grid-template-rows: 62vh 1fr; }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="game" width="1200" height="720"></canvas>
+    <canvas id="minimap" width="170" height="170"></canvas>
+  </div>
+  <div id="ui">
+    <div class="row">
+      <h2>Lands of Sand</h2>
+      <span class="tag" id="version">MVP v0.1</span>
+    </div>
+
+    <div class="row">
+      <div><strong>Gang:</strong> <span id="gangName">Unaffiliated</span></div>
+      <div class="grid" style="gap:6px; grid-template-columns: repeat(3, auto);">
+        <button class="pill" data-gang="Scavvers" title="Balanced start">Join Scavvers</button>
+        <button class="pill" data-gang="Iron Vipers" title="Combat-leaning">Join Iron Vipers</button>
+        <button class="pill" data-gang="Crystal Tong" title="Magicx-leaning">Join Crystal Tong</button>
+      </div>
+    </div>
+
+    <div class="row"><strong>Credits:</strong> <span id="credits">0</span></div>
+    <div class="grid">
+      <div>
+        <div class="row"><span>Fighting</span><span id="lvFight">1</span></div>
+        <div class="bar"><span id="xpFight" style="width:0%"></span></div>
+      </div>
+      <div>
+        <div class="row"><span>Gathering</span><span id="lvGather">1</span></div>
+        <div class="bar"><span id="xpGather" style="width:0%"></span></div>
+      </div>
+      <div>
+        <div class="row"><span>Magicx</span><span id="lvMagic">1</span></div>
+        <div class="bar"><span id="xpMagic" style="width:0%"></span></div>
+      </div>
+      <div>
+        <div class="row"><span>Health</span><span id="hpNow">30</span>/<span id="hpMax">30</span></div>
+        <div class="bar"><span id="hpBar" style="width:100%"></span></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <button id="btnExchange" class="pill">Open Wasteland Exchange</button>
+      <button id="btnInventory" class="pill">Inventory (I)</button>
+      <button id="btnSave" class="pill ok">Save</button>
+      <button id="btnReset" class="pill danger">Reset</button>
+    </div>
+
+    <details>
+      <summary>How to play</summary>
+      <ul>
+        <li><span class="kbd">Click</span> the ground to move. Pathfinding will route around walls.</li>
+        <li>Harvest <strong>Scrap Piles</strong> to gain <em>Gathering XP</em>, items, credits, and rare <em>Relics</em>.</li>
+        <li>Stand on the <strong>Exchange</strong> (bank icon on minimap) and click <em>Open Wasteland Exchange</em> to sell items.</li>
+        <li>Join a <strong>Gang</strong> to benefit inside their colored zone on the minimap.</li>
+        <li>Avoid <strong>Raiders</strong>—they hurt! (They also drop small loot.)</li>
+        <li>Endgame: Max your stats (20 for MVP), gather <em>all 3 Relics</em>, earn <em>1000 Credits</em> → unlock the <span class="eliteGlow">Elite Ring</span> and teleport to the <span class="eliteGlow">Elite City</span>.</li>
+        <li><span class="kbd">I</span> toggles inventory. Auto-save happens regularly.</li>
+      </ul>
+    </details>
+
+    <details>
+      <summary>Design notes (MVP scope)</summary>
+      <ul class="muted">
+        <li>Grid map (60×36 tiles). Zones: Scavvers (green), Iron Vipers (red), Crystal Tong (purple), Wilderness (neutral), Exchange hub (safe).</li>
+        <li>Stats cap at 20 for MVP (change <span class="kbd">MAX_LEVEL</span> in code to expand later).</li>
+        <li>Relics: <em>Ancient Core</em>, <em>Glyph Plate</em>, <em>Crystal Inverter</em> (drops ~2–3% on harvest).</li>
+        <li>Pathfinding: A* on the tile grid.</li>
+        <li>Everything is front-end only; no server needed for Pages deploy.</li>
+      </ul>
+    </details>
+
+    <div class="muted" style="font-size:12px">Made for GitHub Pages • Click-to-move • Minimap • Local save</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Simple modals -->
+<div id="modal" style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.55);">
+  <div id="modalCard" style="width:min(680px,92vw); max-height:80vh; overflow:auto; background:#0f1016; border:1px solid #2a2e37; border-radius:12px; padding:16px;">
+    <div class="row" style="margin-bottom:8px;">
+      <h3 id="modalTitle">Modal</h3>
+      <button id="modalClose" class="pill">Close</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   Lands of Sand — MVP v0.1
+   Single-file, GitHub Pages friendly.
+   ========================================================= */
+
+(() => {
+  // ---------- Constants & Helpers ----------
+  const TILE = 32;
+  const MAP_W = 60, MAP_H = 36;            // 60*36 tiles ⇒ 1920x1152 world
+  const VIEW_W = 1200, VIEW_H = 720;       // canvas size
+  const MAX_LEVEL = 20;                    // MVP cap; expand later
+  const EXCHANGE_TILE = { x: 29, y: 18 };  // central hub tile
+  const SAVE_KEY = "lands_of_sand_save_v01";
+
+  // UI elements
+  const cvs = document.getElementById('game');
+  const ctx = cvs.getContext('2d');
+  const mini = document.getElementById('minimap');
+  const mtx = mini.getContext('2d');
+  const elCredits = document.getElementById('credits');
+  const elGang = document.getElementById('gangName');
+  const elLvFight = document.getElementById('lvFight');
+  const elLvGather = document.getElementById('lvGather');
+  const elLvMagic = document.getElementById('lvMagic');
+  const elHpNow = document.getElementById('hpNow');
+  const elHpMax = document.getElementById('hpMax');
+  const elXpFight = document.getElementById('xpFight');
+  const elXpGather = document.getElementById('xpGather');
+  const elXpMagic = document.getElementById('xpMagic');
+  const elHpBar = document.getElementById('hpBar');
+  const toast = document.getElementById('toast');
+
+  // Modals
+  const modal = document.getElementById('modal');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalBody = document.getElementById('modalBody');
+  const modalClose = document.getElementById('modalClose');
+
+  // Simple RNG helper
+  const rand = (min, max) => Math.random() * (max - min) + min;
+  const randInt = (min, max) => (Math.random() * (max - min + 1) | 0) + min;
+  const chance = p => Math.random() < p;
+
+  function showToast(msg, ms=1300) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), ms);
+  }
+
+  // ---------- World Generation ----------
+  // Tile types: 0 sand, 1 wall/rock, 2 exchange hub, 3 scavvers zone, 4 vipers, 5 crystal, 6 elite city
+  const T = { SAND:0, WALL:1, EXCHANGE:2, SCAV:3, VIPER:4, CRYST:5, ELITE:6 };
+
+  const map = new Array(MAP_W*MAP_H).fill(T.SAND);
+  function idx(x,y){ return y*MAP_W + x; }
+  function inBounds(x,y){ return x>=0 && x<MAP_W && y>=0 && y<MAP_H; }
+
+  // Make some walls/ridges
+  for (let i=0;i<MAP_W*MAP_H;i++){
+    if (Math.random()<0.07) map[i]=T.WALL;
+  }
+  // Clear central hub area
+  for (let y=16;y<=20;y++){
+    for (let x=26;x<=32;x++){
+      map[idx(x,y)] = T.SAND;
+    }
+  }
+  map[idx(EXCHANGE_TILE.x, EXCHANGE_TILE.y)] = T.EXCHANGE;
+
+  // Faction zones (rough rectangles, lightly noisy)
+  function carveZone(x0,y0,x1,y1,type){
+    for (let y=y0;y<=y1;y++){
+      for (let x=x0;x<=x1;x++){
+        if (!inBounds(x,y)) continue;
+        if (map[idx(x,y)]===T.WALL && Math.random()<0.35) continue;
+        if (Math.random()<0.9) map[idx(x,y)] = type;
+      }
+    }
+  }
+  carveZone(4,4,18,15, T.SCAV);
+  carveZone(41,5,55,14, T.VIPER);
+  carveZone(12,22,22,32, T.CRYST);
+
+  // Wilderness stays sand; Elite City is off-map (we draw it when unlocked)
+
+  // ---------- Entities ----------
+  // Player
+  const player = {
+    x: EXCHANGE_TILE.x * TILE + TILE/2,
+    y: EXCHANGE_TILE.y * TILE + TILE/2,
+    spd: 155,
+    path: [],
+    gang: 'Unaffiliated',
+    credits: 0,
+    inv: {},                 // { itemName: qty }
+    relics: {},              // track unique relics found
+    stats: {
+      Fight:{ lv:1, xp:0 },
+      Gather:{ lv:1, xp:0 },
+      Magic:{ lv:1, xp:0 },
+      HP:{ now:30, max:30 }
+    },
+    eliteUnlocked: false,
+    hasEliteRing: false,
+    inEliteCity: false
+  };
+
+  const ITEMS = {
+    'Scrap Metal': { value: 2 },
+    'Copper Wire': { value: 3 },
+    'Plastic Tubing': { value: 2 },
+    'Circuit Shard': { value: 6 },
+    'Food Ration': { value: 4 },
+    'Raider Tag': { value: 5 },
+    // Relics (storyline)
+    'Relic: Ancient Core': { value: 0 },
+    'Relic: Glyph Plate': { value: 0 },
+    'Relic: Crystal Inverter': { value: 0 },
+  };
+  const RELIC_LIST = ['Relic: Ancient Core','Relic: Glyph Plate','Relic: Crystal Inverter'];
+
+  function addItem(name, n=1){
+    player.inv[name] = (player.inv[name]||0)+n;
+  }
+  function addCredits(n){ player.credits += n; }
+
+  // Resources: scrap piles
+  const resources = [];
+  for (let i=0;i<85;i++){
+    const x = randInt(2, MAP_W-3);
+    const y = randInt(2, MAP_H-3);
+    if (map[idx(x,y)]!==T.WALL && !(x===EXCHANGE_TILE.x && y===EXCHANGE_TILE.y)){
+      resources.push({x,y, hp: 3, respawn: 0});
+    }
+  }
+
+  // Raiders: simple wandering hazards
+  const raiders = [];
+  for (let i=0;i<14;i++){
+    const x = randInt(1, MAP_W-2), y=randInt(1, MAP_H-2);
+    if (map[idx(x,y)]!==T.WALL) raiders.push({x:x*TILE+16, y:y*TILE+16, dir: Math.random()*Math.PI*2, spd: 45, cd:0});
+  }
+
+  // ---------- Pathfinding (A*) ----------
+  const DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
+  function passable(tx,ty){
+    if (!inBounds(tx,ty)) return false;
+    return map[idx(tx,ty)] !== T.WALL;
+  }
+  function heuristic(ax,ay,bx,by){
+    return Math.abs(ax-bx)+Math.abs(ay-by);
+  }
+  function aStar(sx,sy,tx,ty){
+    if (!passable(tx,ty)) return [];
+    const start = {x:sx,y:sy};
+    const goal = {x:tx,y:ty};
+    const open = [];
+    const came = new Map();
+    const gScore = new Map();
+    const fScore = new Map();
+    function key(x,y){ return x+','+y; }
+
+    open.push(start);
+    gScore.set(key(sx,sy),0);
+    fScore.set(key(sx,sy), heuristic(sx,sy,tx,ty));
+
+    while (open.length){
+      // find best f
+      let bi=0, bF=Infinity;
+      for (let i=0;i<open.length;i++){
+        const k=key(open[i].x,open[i].y);
+        const f=fScore.get(k) ?? Infinity;
+        if (f<bF){ bF=f; bi=i; }
+      }
+      const cur = open.splice(bi,1)[0];
+      if (cur.x===tx && cur.y===ty){
+        // reconstruct
+        const out = [];
+        let ck = key(cur.x,cur.y);
+        let node = cur;
+        while (came.has(ck)){
+          out.push(node);
+          node = came.get(ck);
+          ck = key(node.x,node.y);
+        }
+        out.reverse();
+        return out;
+      }
+      for (const [dx,dy] of DIRS){
+        const nx=cur.x+dx, ny=cur.y+dy;
+        if (!passable(nx,ny)) continue;
+        const nk=key(nx,ny);
+        const tentative = (gScore.get(key(cur.x,cur.y))??Infinity) + 1;
+        if (tentative < (gScore.get(nk)??Infinity)){
+          came.set(nk, cur);
+          gScore.set(nk, tentative);
+          fScore.set(nk, tentative + heuristic(nx,ny,tx,ty));
+          if (!open.find(n=>n.x===nx&&n.y===ny)) open.push({x:nx,y:ny});
+        }
+      }
+    }
+    return [];
+  }
+
+  // ---------- Input (click to move) ----------
+  let camera = { x: player.x - VIEW_W/2, y: player.y - VIEW_H/2 };
+  cvs.addEventListener('click', e => {
+    const rect = cvs.getBoundingClientRect();
+    const mx = e.clientX - rect.left + camera.x;
+    const my = e.clientY - rect.top + camera.y;
+    const tx = Math.floor(mx / TILE);
+    const ty = Math.floor(my / TILE);
+    const sx = Math.floor(player.x / TILE);
+    const sy = Math.floor(player.y / TILE);
+    const path = aStar(sx,sy,tx,ty);
+    player.path = path.map(p=>({x:p.x*TILE+TILE/2,y:p.y*TILE+TILE/2}));
+  });
+
+  // Keyboard: I = inventory
+  window.addEventListener('keydown', e=>{
+    if (e.key.toLowerCase()==='i') openInventory();
+  });
+
+  // ---------- Gameplay ----------
+  function tileAtWorld(px,py){
+    return { tx: Math.floor(px/TILE), ty: Math.floor(py/TILE) };
+  }
+
+  function zoneAt(tx,ty){
+    const t = inBounds(tx,ty) ? map[idx(tx,ty)] : T.SAND;
+    if (t===T.SCAV) return 'Scavvers';
+    if (t===T.VIPER) return 'Iron Vipers';
+    if (t===T.CRYST) return 'Crystal Tong';
+    if (t===T.ELITE) return 'Elite City';
+    return 'Wilderness';
+  }
+
+  function gainXP(branch, amount){
+    const s = player.stats;
+    const node = branch==='Fight'? s.Fight : branch==='Gather'? s.Gather : s.Magic;
+    if (node.lv >= MAX_LEVEL) return;
+    node.xp += amount;
+    // simple leveling curve
+    const need = node.lv * 15;
+    if (node.xp >= need){
+      node.xp -= need;
+      node.lv++;
+      showToast(`${branch} leveled to ${node.lv}!`);
+      if (branch!=='Fight' && branch!=='Magic' && branch!=='Gather'){}
+    }
+  }
+
+  function damagePlayer(n){
+    player.stats.HP.now = Math.max(0, player.stats.HP.now - n);
+    if (player.stats.HP.now===0){
+      // Simple death → respawn at exchange, lose some credits
+      player.x = EXCHANGE_TILE.x*TILE + TILE/2;
+      player.y = EXCHANGE_TILE.y*TILE + TILE/2;
+      player.path = [];
+      const loss = Math.min(50, player.credits|0);
+      player.credits -= loss;
+      player.stats.HP.now = Math.max(10, Math.floor(player.stats.HP.max/2));
+      showToast(`You died! Lost ${loss} credits.`, 1600);
+    }
+  }
+
+  function heal(n){
+    player.stats.HP.now = Math.min(player.stats.HP.max, player.stats.HP.now + n);
+  }
+
+  function harvestAt(tx,ty){
+    const res = resources.find(r => r.x===tx && r.y===ty && r.hp>0);
+    if (!res) return false;
+    res.hp--;
+    gainXP('Gather', 4);
+    // Loot table (MVP)
+    const lootRoll = Math.random();
+    if (lootRoll<0.35) addItem('Scrap Metal', randInt(1,2));
+    else if (lootRoll<0.55) addItem('Copper Wire', 1);
+    else if (lootRoll<0.75) addItem('Plastic Tubing', 1);
+    else if (lootRoll<0.9) addItem('Circuit Shard', 1);
+    else addCredits(randInt(1,3));
+
+    // small heal chance if in your own gang zone
+    const z = zoneAt(tx,ty);
+    if (z===player.gang && chance(0.25)) heal(1);
+
+    // Rare relic chance
+    if (chance(0.028)){
+      const missing = RELIC_LIST.filter(r => !player.relics[r]);
+      if (missing.length){
+        const pick = missing[randInt(0, missing.length-1)];
+        addItem(pick, 1);
+        player.relics[pick] = true;
+        showToast(`Found a storyline relic: ${pick}!`, 1800);
+      }
+    }
+
+    if (res.hp<=0){
+      res.respawn = 12 + Math.random()*12; // seconds
+      showToast('Scrap pile depleted.');
+    }
+    return true;
+  }
+
+  function tryEndgameUnlock(){
+    const allRelics = RELIC_LIST.every(r => player.relics[r]);
+    const maxed = player.stats.Fight.lv>=MAX_LEVEL &&
+                  player.stats.Gather.lv>=MAX_LEVEL &&
+                  player.stats.Magic.lv>=MAX_LEVEL &&
+                  player.stats.HP.max>=70; // MVP: HP max rises later; here just gate
+    if (!player.eliteUnlocked && allRelics && player.credits>=1000 && maxed){
+      player.eliteUnlocked = true;
+      player.hasEliteRing = true;
+      openCutscene();
+    }
+  }
+
+  // ---------- Rendering ----------
+  function draw(){
+    // camera follows
+    camera.x += (player.x - VIEW_W/2 - camera.x)*0.12;
+    camera.y += (player.y - VIEW_H/2 - camera.y)*0.12;
+
+    // Clamp camera
+    camera.x = Math.max(0, Math.min(camera.x, MAP_W*TILE - VIEW_W));
+    camera.y = Math.max(0, Math.min(camera.y, MAP_H*TILE - VIEW_H));
+
+    // Background tiles
+    ctx.clearRect(0,0,VIEW_W,VIEW_H);
+    const x0 = Math.floor(camera.x/TILE), y0 = Math.floor(camera.y/TILE);
+    const x1 = Math.ceil((camera.x+VIEW_W)/TILE), y1 = Math.ceil((camera.y+VIEW_H)/TILE);
+
+    for (let y=y0;y<y1;y++){
+      for (let x=x0;x<x1;x++){
+        if (!inBounds(x,y)) continue;
+        const t = map[idx(x,y)];
+        const wx = x*TILE - camera.x;
+        const wy = y*TILE - camera.y;
+
+        // base sand
+        ctx.fillStyle = '#d7c48d';
+        ctx.fillRect(wx,wy,TILE,TILE);
+
+        // subtle noise lines
+        ctx.fillStyle = '#ceb87b';
+        if ((x+y)%5===0) ctx.fillRect(wx, wy+TILE-3, TILE, 2);
+
+        if (t===T.WALL){
+          ctx.fillStyle = '#2e2e33';
+          ctx.fillRect(wx,wy,TILE,TILE);
+          ctx.fillStyle = '#42424b';
+          ctx.fillRect(wx+4,wy+4,TILE-8,TILE-8);
+        } else if (t===T.EXCHANGE){
+          ctx.fillStyle = '#1a2130';
+          ctx.fillRect(wx,wy,TILE,TILE);
+          // bank icon
+          ctx.fillStyle = '#9ad0ff';
+          ctx.fillRect(wx+8,wy+6,16,20);
+          ctx.fillStyle = '#0f141d';
+          ctx.fillRect(wx+10,wy+10,12,10);
+        } else if (t===T.SCAV){
+          ctx.globalAlpha = 0.18;
+          ctx.fillStyle = '#4caf50';
+          ctx.fillRect(wx,wy,TILE,TILE);
+          ctx.globalAlpha = 1;
+        } else if (t===T.VIPER){
+          ctx.globalAlpha = 0.18;
+          ctx.fillStyle = '#e74c3c';
+          ctx.fillRect(wx,wy,TILE,TILE);
+          ctx.globalAlpha = 1;
+        } else if (t===T.CRYST){
+          ctx.globalAlpha = 0.18;
+          ctx.fillStyle = '#a66bff';
+          ctx.fillRect(wx,wy,TILE,TILE);
+          ctx.globalAlpha = 1;
+        } else if (t===T.ELITE){
+          ctx.globalAlpha = 0.20;
+          ctx.fillStyle = '#22354a';
+          ctx.fillRect(wx,wy,TILE,TILE);
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+
+    // Resources
+    for (const r of resources){
+      if (r.hp<=0) continue;
+      const wx = r.x*TILE - camera.x;
+      const wy = r.y*TILE - camera.y;
+      if (wx<-TILE||wy<-TILE||wx>VIEW_W||wy>VIEW_H) continue;
+      ctx.fillStyle = '#7a6b52';
+      ctx.fillRect(wx+6,wy+8,20,16);
+      ctx.strokeStyle = '#4c3f2a';
+      ctx.strokeRect(wx+6,wy+8,20,16);
+    }
+
+    // Raiders
+    for (const b of raiders){
+      const wx = b.x - camera.x, wy=b.y - camera.y;
+      if (wx<-20||wy<-20||wx>VIEW_W+20||wy>VIEW_H+20) continue;
+      ctx.fillStyle = '#6b1f1f';
+      ctx.beginPath();
+      ctx.arc(wx,wy,10,0,Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#b44';
+      ctx.fillRect(wx-5, wy-12, 10, 4);
+    }
+
+    // Player
+    ctx.fillStyle = '#2b7cff';
+    ctx.beginPath();
+    ctx.arc(player.x - camera.x, player.y - camera.y, 10, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#0f1b2e';
+    ctx.stroke();
+
+    // Target path
+    if (player.path.length){
+      ctx.strokeStyle = '#0b3a6b';
+      ctx.beginPath();
+      ctx.moveTo(player.x - camera.x, player.y - camera.y);
+      for (const p of player.path){
+        ctx.lineTo(p.x - camera.x, p.y - camera.y);
+      }
+      ctx.stroke();
+    }
+
+    drawMinimap();
+  }
+
+  function drawMinimap(){
+    const scaleX = mini.width / (MAP_W);
+    const scaleY = mini.height / (MAP_H);
+    mtx.clearRect(0,0,mini.width,mini.height);
+
+    // zones
+    for (let y=0;y<MAP_H;y++){
+      for (let x=0;x<MAP_W;x++){
+        const t = map[idx(x,y)];
+        if (t===T.WALL) { mtx.fillStyle = '#2c2f38'; }
+        else if (t===T.EXCHANGE) { mtx.fillStyle = '#0e1726'; }
+        else if (t===T.SCAV) { mtx.fillStyle = '#2b4'; }
+        else if (t===T.VIPER) { mtx.fillStyle = '#b33'; }
+        else if (t===T.CRYST) { mtx.fillStyle = '#84f'; }
+        else if (t===T.ELITE) { mtx.fillStyle = '#1b2b3d'; }
+        else { mtx.fillStyle = '#cdb77a'; }
+        mtx.fillRect(x*scaleX, y*scaleY, Math.ceil(scaleX), Math.ceil(scaleY));
+      }
+    }
+
+    // resources
+    mtx.fillStyle = '#6b5';
+    for (const r of resources){
+      if (r.hp<=0) continue;
+      mtx.fillRect(r.x*scaleX, r.y*scaleY, Math.max(1, Math.ceil(scaleX/2)), Math.max(1, Math.ceil(scaleY/2)));
+    }
+
+    // exchange
+    mtx.fillStyle = '#9ad0ff';
+    mtx.fillRect(EXCHANGE_TILE.x*scaleX, EXCHANGE_TILE.y*scaleY, Math.ceil(scaleX), Math.ceil(scaleY));
+
+    // player
+    mtx.fillStyle = '#2b7cff';
+    const ptx = Math.floor(player.x/TILE)*scaleX;
+    const pty = Math.floor(player.y/TILE)*scaleY;
+    mtx.fillRect(ptx, pty, Math.max(2,Math.ceil(scaleX)), Math.max(2,Math.ceil(scaleY)));
+    mtx.strokeStyle = '#0a0a0a';
+    mtx.strokeRect(ptx, pty, Math.max(2,Math.ceil(scaleX)), Math.max(2,Math.ceil(scaleY)));
+  }
+
+  // ---------- Simulation ----------
+  let last = performance.now();
+  function tick(now){
+    const dt = (now - last)/1000;
+    last = now;
+
+    // Move player along path
+    if (player.path.length){
+      const target = player.path[0];
+      const dx = target.x - player.x;
+      const dy = target.y - player.y;
+      const d = Math.hypot(dx,dy);
+      const step = player.spd * dt;
+      if (d <= step){
+        player.x = target.x; player.y = target.y;
+        player.path.shift();
+
+        // Reached a tile center; perform implied actions:
+        const {tx,ty} = tileAtWorld(player.x, player.y);
+        // auto-harvest if standing on resource
+        harvestAt(tx,ty);
+
+        // Heal slowly in exchange hub
+        if (map[idx(tx,ty)]===T.EXCHANGE && chance(0.4)) heal(1);
+
+      } else {
+        player.x += dx/d * step;
+        player.y += dy/d * step;
+      }
+    }
+
+    // Raiders wander + collide damage
+    for (const b of raiders){
+      if (b.cd>0) b.cd -= dt;
+      b.x += Math.cos(b.dir)*b.spd*dt;
+      b.y += Math.sin(b.dir)*b.spd*dt;
+
+      // bounce off walls
+      const {tx,ty} = tileAtWorld(b.x, b.y);
+      if (!inBounds(tx,ty) || map[idx(tx,ty)]===T.WALL){
+        b.dir += Math.PI * (0.6 + Math.random()*0.7);
+      }
+      // random turn
+      if (chance(0.02)) b.dir += rand(-0.7,0.7);
+
+      // damage player on contact
+      const d = Math.hypot(b.x - player.x, b.y - player.y);
+      if (d<18 && b.cd<=0){
+        const z = zoneAt(tx,ty);
+        // a tiny mitigation in your own gang zone
+        const dmg = z===player.gang ? randInt(2,4) : randInt(3,6);
+        damagePlayer(dmg);
+        b.cd = 1.1;
+        if (chance(0.25)){ addItem('Raider Tag',1); addCredits(1); }
+        // fighting xp on being hit (MVP)
+        gainXP('Fight', 3);
+      }
+    }
+
+    // Respawn resources
+    for (const r of resources){
+      if (r.hp<=0){
+        r.respawn -= dt;
+        if (r.respawn<=0){ r.hp = 3; r.respawn = 0; }
+      }
+    }
+
+    // Slow passive Magicx xp in Crystal Tong zone
+    const {tx,ty} = tileAtWorld(player.x, player.y);
+    if (map[idx(tx,ty)]===T.CRYST && chance(0.02)) gainXP('Magic',1);
+
+    // HP max grows a bit as levels increase (MVP feel-good)
+    const targetHp = 20 + player.stats.Fight.lv + player.stats.Gather.lv + player.stats.Magic.lv;
+    player.stats.HP.max = Math.max(player.stats.HP.max, Math.min(70, targetHp));
+
+    draw();
+    updateUI();
+    tryEndgameUnlock();
+
+    requestAnimationFrame(tick);
+  }
+
+  function updateUI(){
+    elCredits.textContent = player.credits|0;
+    elGang.textContent = player.gang;
+
+    elLvFight.textContent = player.stats.Fight.lv;
+    elLvGather.textContent = player.stats.Gather.lv;
+    elLvMagic.textContent = player.stats.Magic.lv;
+
+    const needF = Math.max(1, player.stats.Fight.lv*15);
+    const needG = Math.max(1, player.stats.Gather.lv*15);
+    const needM = Math.max(1, player.stats.Magic.lv*15);
+    elXpFight.style.width = Math.min(100, player.stats.Fight.xp/needF*100) + '%';
+    elXpGather.style.width = Math.min(100, player.stats.Gather.xp/needG*100) + '%';
+    elXpMagic.style.width = Math.min(100, player.stats.Magic.xp/needM*100) + '%';
+
+    elHpNow.textContent = player.stats.HP.now|0;
+    elHpMax.textContent = player.stats.HP.max|0;
+    elHpBar.style.width = Math.max(0, Math.min(100, player.stats.HP.now/player.stats.HP.max*100)) + '%';
+  }
+
+  // ---------- UI Actions ----------
+  // Join gang buttons
+  document.querySelectorAll('[data-gang]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const g = btn.getAttribute('data-gang');
+      player.gang = g;
+      showToast(`Joined ${g}`);
+    });
+  });
+
+  // Exchange modal
+  document.getElementById('btnExchange').addEventListener('click', ()=>{
+    const {tx,ty} = tileAtWorld(player.x, player.y);
+    if (tx!==EXCHANGE_TILE.x || ty!==EXCHANGE_TILE.y){
+      showToast('Stand on the Exchange tile to trade.');
+      return;
+    }
+    openExchange();
+  });
+
+  // Inventory modal
+  document.getElementById('btnInventory').addEventListener('click', openInventory);
+
+  // Save / Reset
+  document.getElementById('btnSave').addEventListener('click', saveGame);
+  document.getElementById('btnReset').addEventListener('click', ()=>{
+    if (confirm('Reset your save? This cannot be undone.')){
+      localStorage.removeItem(SAVE_KEY);
+      location.reload();
+    }
+  });
+
+  // Modal close
+  modalClose.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e)=>{ if (e.target===modal) closeModal(); });
+
+  function openModal(title, innerHTML){
+    modalTitle.textContent = title;
+    modalBody.innerHTML = innerHTML;
+    modal.style.display = 'flex';
+  }
+  function closeModal(){ modal.style.display = 'none'; }
+
+  function openExchange(){
+    let rows = '';
+    const entries = Object.entries(player.inv).filter(([k,v])=>v>0);
+    if (!entries.length){
+      rows = `<p class="muted">You have nothing to sell. Go harvest scrap piles.</p>`;
+    } else {
+      rows = `<table style="width:100%; border-collapse:collapse;">
+        <tr style="color:#a0a3ad"><th style="text-align:left;padding:6px 4px;">Item</th><th>Qty</th><th>Value</th><th>Sell</th></tr>
+        ${entries.map(([name,qty])=>{
+          const val = ITEMS[name]?.value ?? 0;
+          return `<tr>
+            <td style="padding:6px 4px;">${name}</td>
+            <td style="text-align:center;">${qty}</td>
+            <td style="text-align:center;">${val}</td>
+            <td style="text-align:center;">
+              <button class="pill" data-sell="${encodeURIComponent(name)}">Sell 1</button>
+              <button class="pill" data-sellall="${encodeURIComponent(name)}">Sell All</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </table>`;
+    }
+
+    // Elite Ring button (if unlocked)
+    const ringBtn = player.hasEliteRing ? `
+      <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+        <span class="eliteGlow">Elite Ring:</span>
+        <button id="btnEliteIn" class="pill">Teleport to Elite City</button>
+        <button id="btnEliteOut" class="pill">Teleport to Surface</button>
+      </div>` : '';
+
+    openModal('Wasteland Exchange', rows + ringBtn);
+
+    // Bind sell buttons
+    modalBody.querySelectorAll('[data-sell]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const name = decodeURIComponent(b.getAttribute('data-sell'));
+        if ((player.inv[name]||0)>0){
+          player.inv[name]-=1;
+          addCredits(ITEMS[name]?.value ?? 0);
+          showToast(`Sold 1 ${name}`);
+          openExchange(); // refresh
+        }
+      });
+    });
+    modalBody.querySelectorAll('[data-sellall]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        const name = decodeURIComponent(b.getAttribute('data-sellall'));
+        const qty = player.inv[name]||0;
+        if (qty>0){
+          addCredits((ITEMS[name]?.value ?? 0)*qty);
+          player.inv[name]=0;
+          showToast(`Sold ${qty} ${name}`);
+          openExchange(); // refresh
+        }
+      });
+    });
+
+    // Bind ring teleports
+    if (player.hasEliteRing){
+      const inBtn = document.getElementById('btnEliteIn');
+      const outBtn = document.getElementById('btnEliteOut');
+      inBtn.addEventListener('click', ()=>{
+        goEliteCity(true);
+        closeModal();
+      });
+      outBtn.addEventListener('click', ()=>{
+        goEliteCity(false);
+        closeModal();
+      });
+    }
+  }
+
+  function openInventory(){
+    const entries = Object.entries(player.inv).filter(([k,v])=>v>0);
+    let body = '';
+    if (!entries.length){
+      body = `<p class="muted">Empty pack. Harvest scrap piles to gather items.</p>`;
+    } else {
+      body = `<ul>${entries.map(([k,v])=>`<li>${k} × ${v}</li>`).join('')}</ul>`;
+    }
+    openModal('Inventory', body);
+  }
+
+  function openCutscene(){
+    const html = `
+      <p>You have proven your mastery in the Lands of Sand.</p>
+      <p>The hidden society known as the <span class="eliteGlow">Elites</span> welcomes you.</p>
+      <p>They bestow upon you an <span class="eliteGlow">Elite Ring</span>—a device of ancient technology.</p>
+      <p>Use it from the Exchange to teleport <em>in or out</em> of their underground city.</p>
+      <div style="margin-top:8px;"><button id="btnOkCut" class="pill ok">Accept</button></div>
+    `;
+    openModal('Ascension to the Elites', html);
+    document.getElementById('btnOkCut').addEventListener('click', closeModal);
+  }
+
+  function goEliteCity(inward){
+    if (inward){
+      // Convert a region to elite tiles (MVP “instance”)
+      for (let y=6;y<=28;y++){
+        for (let x=40;x<=57;x++){
+          if (map[idx(x,y)]!==T.WALL) map[idx(x,y)] = T.ELITE;
+        }
+      }
+      player.x = (41*TILE) + TILE/2;
+      player.y = (18*TILE) + TILE/2;
+      player.inEliteCity = true;
+      showToast('Teleported to Elite City.');
+    } else {
+      player.x = EXCHANGE_TILE.x*TILE + TILE/2;
+      player.y = EXCHANGE_TILE.y*TILE + TILE/2;
+      player.inEliteCity = false;
+      showToast('Teleported to surface.');
+    }
+  }
+
+  // ---------- Persistence ----------
+  function saveGame(){
+    const data = JSON.stringify(player);
+    localStorage.setItem(SAVE_KEY, data);
+    showToast('Game saved.');
+  }
+  function loadGame(){
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    try{
+      const p = JSON.parse(raw);
+      Object.assign(player, p);
+      // guard types
+      player.path = [];
+      showToast('Save loaded.');
+    }catch(e){}
+  }
+  // Auto-save
+  setInterval(()=> saveGame(), 10000);
+
+  // ---------- Boot ----------
+  loadGame();
+  updateUI();
+  draw();
+  requestAnimationFrame(tick);
+
+  // Expose a tiny dev helper for console
+  window.los = {
+    addItem, addCredits, player, heal,
+    maxAll: ()=>{
+      player.stats.Fight.lv=MAX_LEVEL;
+      player.stats.Gather.lv=MAX_LEVEL;
+      player.stats.Magic.lv=MAX_LEVEL;
+      player.stats.HP.max=70; player.stats.HP.now=70;
+      RELIC_LIST.forEach(r=>{ player.relics[r]=true; addItem(r,1); });
+      player.credits=1000;
+      showToast('Dev: Maxed.');
+    }
+  };
+})();
+</script>
+</body>
+</html>
+
+What’s in this MVP (quick recap)
+
+Click-to-move with grid A* pathfinding
+
+Minimap showing zones (gang colors), Exchange, resources, walls, player
+
+Gangs you can join/switch anytime (affects zone benefits)
+
+Harvesting scrap piles → items, XP, credits, rare relics
+
+Stats (level to 20): Fighting, Gathering, Magicx; Health grows a bit with progress
+
+Wasteland Exchange (sell items, manage credits)
+
+Raiders that damage you on contact (hazard & small loot)
+
+Endgame: collect 3 relics + 1000 credits + max stats → Elite Ring → Elite City teleport
+
+LocalStorage auto-save
