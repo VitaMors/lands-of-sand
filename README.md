@@ -1,124 +1,112 @@
-# Lands of Sand 🏜️
+# Lands of Sand - RuneScape Classic Style
 
-A RuneScape-inspired PvP survival RPG built for the web. Click-to-move through a wasteland, join gangs, harvest resources, and work your way up to the Elite City!
+A 3D web game built with Three.js that recreates the classic RuneScape visual style and gameplay mechanics.
 
-## 🎮 Play Now
+## Features
 
-**[Play Lands of Sand](https://your-username.github.io/lands-of-sand)** *(Update this link after deployment)*
+### 🎮 Core Gameplay
+- **Click-to-move** with A* pathfinding and diagonal movement
+- **3D isometric camera** following the player
+- **RuneScape Classic visual style** with flat shading and pixelated textures
+- **Interactive NPCs** with overhead chat text
+- **Real-time minimap** showing buildings, NPCs, and player location
 
-## ✨ Features
+### 🏗️ World & Graphics
+- **Half-timber house** with white plaster and brown beam construction
+- **Market stall** with canopy and wooden counter
+- **Procedural cobblestone textures** with nearest-neighbor filtering
+- **Atmospheric lighting** with sun and ambient light
+- **Shadow mapping** for realistic depth
 
-### Core Gameplay
-- **Click-to-move** with A* pathfinding on a 60×36 tile grid
-- **Gang system** - Join Scavvers, Iron Vipers, or Crystal Tong for zone benefits
-- **Resource gathering** - Harvest scrap piles for items, XP, and rare relics
-- **Wasteland Exchange** - Player-driven economy for trading items
-- **Progressive stats** - Fighting, Gathering, Magicx, and Health
+### 🗺️ Minimap System
+- **2D pixelated minimap** in top-right corner
+- **Building rectangles** showing world structures
+- **Player position** as cyan dot
+- **NPC locations** as yellow dots
+- **Movement path** visualization
+- **Grid overlay** for navigation reference
 
-### World & Zones
-- **Gang territories** with unique benefits and visual themes
-- **Wilderness areas** for dangerous but rewarding exploration  
-- **Exchange hub** - Safe trading zone in the center of the map
-- **Elite City** - Secret endgame area unlocked through progression
+### 💬 Chat System
+- **Overhead NPC text** in classic yellow with black outline
+- **Chat panel** with colored player and NPC names
+- **Timed chat messages** that appear periodically
 
-### Progression System
-- **Level cap of 20** (easily expandable)
-- **Storyline relics** - Ancient Core, Glyph Plate, Crystal Inverter
-- **Elite Ring** - Teleportation device earned through mastery
-- **Auto-save** with localStorage persistence
+## Technical Implementation
 
-## 🚀 Quick Start
+### 🛠️ Tech Stack
+- **Three.js r128** for 3D rendering
+- **Vanilla JavaScript** for game logic
+- **HTML5 Canvas** for minimap rendering
+- **CSS3** for UI styling
 
-### For Players
-1. Click anywhere on the game canvas to move
-2. Harvest brown scrap piles by walking over them
-3. Join a gang for zone benefits and healing
-4. Sell items at the Wasteland Exchange (blue building)
-5. Avoid red raiders - they hurt but drop loot!
-6. **Endgame**: Max all stats + collect all 3 relics + earn 1000 credits = Elite Ring
-
-### Controls
-- **Click** - Move to location
-- **I** - Toggle inventory
-- **Gang buttons** - Switch factions anytime
-
-## 🛠️ Development
-
-### Tech Stack
-- **Frontend**: Vanilla HTML5 Canvas + JavaScript
-- **Deployment**: GitHub Pages (no server required!)
-- **Storage**: localStorage for save data
-
-### Local Development
-```bash
-# Clone the repository
-git clone https://github.com/your-username/lands-of-sand.git
-cd lands-of-sand
-
-# Open index.html in your browser
-# That's it! No build process needed.
+### 📁 File Structure
+```
+├── index.html          # Main HTML file with UI
+├── src/
+│   ├── main.js         # Core game logic and Three.js setup
+│   └── minimap.js      # 2D minimap rendering system
+├── assets/
+│   └── atlas.png       # Texture atlas (placeholder)
+└── README.md
 ```
 
-### Dev Console
-Open browser console and use `los.maxAll()` to instantly max your character for testing.
+### 🎨 Visual Style
+- **Flat shading** on all 3D models
+- **Nearest filter textures** for pixelated look
+- **Bold, saturated colors** with dusty tones
+- **Simple geometry** with minimal bevels
+- **Power-of-two textures** for optimal performance
 
-## 📋 Roadmap
+## Getting Started
 
-### Phase 1: MVP ✅
-- [x] Click-to-move with pathfinding
-- [x] Gang system and territories  
-- [x] Resource gathering and XP
-- [x] Trading system
-- [x] Elite City endgame
+1. **Open `index.html`** in a modern web browser
+2. **Click on the ground** to move your character
+3. **Watch NPCs** for periodic chat messages
+4. **Use the minimap** to navigate the world
 
-### Phase 2: Multiplayer
-- [ ] WebSocket server with Node.js
-- [ ] Real-time multiplayer
-- [ ] Player vs player combat
-- [ ] Item dropping on death
+## Controls
 
-### Phase 3: Gang Warfare
-- [ ] Territory control battles
-- [ ] Gang vs gang combat
-- [ ] Resource node control
-- [ ] Gang progression system
+- **Left Click**: Move to location
+- **Mouse Hover**: Show "Walk here" tooltip
+- **Auto Camera**: Follows player automatically
 
-### Phase 4: Enhanced Content
-- [ ] Crafting system using relics
-- [ ] Player housing in Elite City
-- [ ] More storyline content
-- [ ] Advanced combat mechanics
+## Game World
 
-## 🎨 Design Philosophy
+### 🏘️ Buildings
+- **Half-timber House**: Residential building with traditional styling
+- **Market Stall**: Trading post with red canopy
 
-**Lands of Sand** combines the best elements of:
-- **RuneScape**: Click-to-move, skill progression, player economy
-- **RUST**: Full PvP, gang warfare, territorial control
-- **Modern web games**: Instant play, no downloads, responsive design
+### 👥 NPCs
+- **Shopkeeper**: Sells coal certificates
+- **Trader**: Offers various goods
 
-The game is designed to be:
-- **Immediately playable** - No registration or downloads
-- **Progressively complex** - Simple start, deep endgame
-- **Socially driven** - Gang dynamics and player interaction
-- **Infinitely expandable** - Modular codebase for easy feature addition
+### 🗺️ Navigation
+- **Grid-based movement** with pathfinding
+- **Obstacle avoidance** around buildings
+- **Diagonal movement** support
 
-## 🤝 Contributing
+## Development
 
-This is currently a solo project, but contributions are welcome! Areas where help would be appreciated:
+### 🚀 Running Locally
+Simply open `index.html` in your browser - no build process required!
 
-- **Art & Design**: Better sprites, animations, UI improvements
-- **Game Balance**: Tuning XP rates, loot tables, progression curves  
-- **New Features**: Combat systems, crafting, housing
-- **Bug Fixes**: Performance optimization, edge cases
+### 🎯 Future Enhancements
+- **Multiplayer support** with WebSocket server
+- **Inventory system** and item interactions
+- **Combat mechanics** with PvP battles
+- **Gang territories** and faction warfare
+- **Elite City** endgame content
+- **More buildings** and world expansion
 
-## 📄 License
+## Browser Compatibility
 
-MIT License - Feel free to fork and create your own version!
+- **Chrome**: Full support
+- **Firefox**: Full support  
+- **Safari**: Full support
+- **Edge**: Full support
 
-## 🙏 Credits
-
-Inspired by the classic gameplay of RuneScape and the player freedom of RUST. Built with love for the web gaming community.
+Requires WebGL support for 3D rendering.
 
 ---
 
-*Ready to survive the wasteland? Click to play!*
+*Built with ❤️ for the RuneScape Classic community*
