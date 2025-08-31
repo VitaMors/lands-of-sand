@@ -540,15 +540,19 @@ function onKeyDown(event) {
     console.log('Key pressed:', key, 'Chat active:', chatActive);
     
     if (key === 'Enter') {
+        console.log('Enter key pressed! Chat active:', chatActive, 'Current input:', chatInput);
         if (!chatActive) {
             // Start typing
             chatActive = true;
             chatInput = '';
+            console.log('Starting chat input mode');
             updateChatDisplay();
         } else {
             // Send message
+            console.log('Attempting to send message:', chatInput);
             if (chatInput.trim()) {
                 const message = chatInput.trim();
+                console.log('Sending message:', message);
                 
                 // Add to chat box
                 chatMessages.push({
@@ -568,14 +572,18 @@ function onKeyDown(event) {
                 
                 // Update chat box with new message
                 updateChatBox();
+            } else {
+                console.log('Empty message, not sending');
             }
             
             // Stop typing
             chatActive = false;
             chatInput = '';
+            console.log('Stopping chat input mode');
             updateChatDisplay();
         }
         event.preventDefault();
+        return; // Make sure we don't fall through to other key handling
     } else if (key === 'Escape' && chatActive) {
         // Cancel typing
         chatActive = false;
@@ -622,18 +630,26 @@ function onKeyDown(event) {
 }
 
 function updateChatDisplay() {
+    console.log('Updating chat display - Chat active:', chatActive, 'Input:', chatInput);
     const chatPrompt = document.getElementById('chatPrompt');
     const chatInputEl = document.getElementById('chatInput');
     const chatCursor = document.getElementById('chatCursor');
     
+    if (!chatPrompt || !chatInputEl || !chatCursor) {
+        console.error('Chat elements not found!', {chatPrompt, chatInputEl, chatCursor});
+        return;
+    }
+    
     if (!chatActive) {
         // Show prompt
+        console.log('Showing chat prompt');
         chatPrompt.style.display = 'inline';
         chatPrompt.textContent = 'PRESS ENTER TO START TYPING';
         chatInputEl.style.display = 'none';
         chatCursor.style.display = 'none';
     } else {
         // Show input
+        console.log('Showing chat input mode');
         chatPrompt.style.display = 'none';
         chatInputEl.style.display = 'inline';
         chatInputEl.textContent = chatInput;
