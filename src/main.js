@@ -13,6 +13,11 @@ let chatInput = '';
 let chatMessages = [];
 let chatCursorVisible = true;
 
+// Camera system variables
+let cameraAngle = 0; // Current rotation angle in radians
+let cameraDistance = 12; // Distance from player
+let cameraHeight = 8; // Height above ground
+
 // Game constants
 const TILE_SIZE = 2;
 const GRID_SIZE = 32;
@@ -102,6 +107,9 @@ function init() {
         chatCursorVisible = !chatCursorVisible;
         if (chatActive) updateChatDisplay();
     }, 500);
+
+    // Set initial camera position
+    updateCameraPosition();
 
     // Start game loop
     animate();
@@ -297,6 +305,14 @@ function createPlayer() {
     player = new THREE.Mesh(geometry, material);
     player.position.set(0, 0.8, 0);
     player.castShadow = true;
+    
+    // Add chat data to player
+    player.userData = {
+        chatText: '',
+        chatTimer: 0,
+        name: 'UNNAMED'
+    };
+    
     scene.add(player);
 }
 
@@ -521,11 +537,20 @@ function onKeyDown(event) {
         } else {
             // Send message
             if (chatInput.trim()) {
+                const message = chatInput.trim();
+                
+                // Add to chat box
                 chatMessages.push({
                     name: 'UNNAMED',
-                    message: chatInput.trim(),
+                    message: message,
                     type: 'player'
                 });
+                
+                // Set overhead text for player
+                if (player && player.userData) {
+                    player.userData.chatText = message;
+                    player.userData.chatTimer = 5.0; // Show for 5 seconds
+                }
                 
                 // Update chat box with new message
                 updateChatBox();
@@ -554,6 +579,27 @@ function onKeyDown(event) {
             updateChatDisplay();
         }
         event.preventDefault();
+    } else {
+        // Camera controls (only when not typing in chat)
+        if (key === 'ArrowLeft') {
+            cameraAngle += Math.PI / 4; // Rotate 45 degrees left
+            updateCameraPosition();
+            event.preventDefault();
+        } else if (key === 'ArrowRight') {
+            cameraAngle -= Math.PI / 4; // Rotate 45 degrees right
+            updateCameraPosition();
+            event.preventDefault();
+        } else if (key === 'ArrowUp') {
+            // Optional: Zoom in slightly
+            cameraDistance = Math.max(8, cameraDistance - 2);
+            updateCameraPosition();
+            event.preventDefault();
+        } else if (key === 'ArrowDown') {
+            // Optional: Zoom out slightly
+            cameraDistance = Math.min(16, cameraDistance + 2);
+            updateCameraPosition();
+            event.preventDefault();
+        }
     }
 }
 
@@ -607,6 +653,23 @@ function updateChatBox() {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
+function updateCameraPosition() {
+    if (!player || !camera) return;
+    
+    // Calculate camera position based on player position and angle
+    const playerPos = player.position;
+    
+    const cameraX = playerPos.x + Math.cos(cameraAngle) * cameraDistance;
+    const cameraZ = playerPos.z + Math.sin(cameraAngle) * cameraDistance;
+    const cameraY = playerPos.y + cameraHeight;
+    
+    // Set camera position
+    camera.position.set(cameraX, cameraY, cameraZ);
+    
+    // Make camera look at player
+    camera.lookAt(playerPos.x, playerPos.y + 1, playerPos.z);
+}
+
 // Game loop
 function animate() {
     requestAnimationFrame(animate);
@@ -626,6 +689,11 @@ function animate() {
         }
     }
 
+    // Update player chat timer
+    if (player && player.userData && player.userData.chatTimer > 0) {
+        player.userData.chatTimer -= 0.016; // Decrease timer each frame
+    }
+
     // Update NPC chat timers
     npcs.forEach(npc => {
         if (npc.userData.chatTimer > 0) {
@@ -635,14 +703,8 @@ function animate() {
         }
     });
 
-    // Update camera to follow player
-    const targetCameraPos = new THREE.Vector3(
-        player.position.x + 15,
-        20,
-        player.position.z + 15
-    );
-    camera.position.lerp(targetCameraPos, 0.02);
-    camera.lookAt(player.position);
+    // Update camera to follow player (orbit system)
+    updateCameraPosition();
 
     // Render overhead chat text
     renderOverheadText();
@@ -656,6 +718,40 @@ function animate() {
 function renderOverheadText() {
     // Simplified overhead text rendering
     try {
+        // Render player overhead text
+        if (player && player.userData && player.userData.chatTimer > 0) {
+            const vector = player.position.clone();
+            vector.y += 2.5; // Slightly higher for player
+            vector.project(camera);
+
+            const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+
+            // Remove existing player chat element
+            const existing = document.querySelector('.chat-overhead-player');
+            if (existing) existing.remove();
+
+            // Create new player chat element
+            const chatElement = document.createElement('div');
+            chatElement.className = 'chat-overhead-player';
+            chatElement.style.position = 'absolute';
+            chatElement.style.left = x + 'px';
+            chatElement.style.top = y + 'px';
+            chatElement.style.color = '#00FFFF'; // Cyan for player
+            chatElement.style.fontSize = '12px';
+            chatElement.style.fontWeight = 'bold';
+            chatElement.style.textShadow = '1px 1px 0px #000000';
+            chatElement.style.pointerEvents = 'none';
+            chatElement.style.zIndex = '10';
+            chatElement.style.transform = 'translate(-50%, -100%)';
+            chatElement.textContent = player.userData.chatText;
+            document.body.appendChild(chatElement);
+        } else {
+            // Remove player chat element when timer expires
+            const existing = document.querySelector('.chat-overhead-player');
+            if (existing) existing.remove();
+        }
+
         npcs.forEach((npc, index) => {
             if (npc.userData && npc.userData.chatTimer > 2) {
                 // Show chat text above NPC
