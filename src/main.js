@@ -247,8 +247,8 @@ function createMarketStall() {
 }
 
 function createPlayer() {
-    // Simple capsule player
-    const geometry = new THREE.CapsuleGeometry(0.3, 1.2, 4, 8);
+    // Simple cylinder player (capsule not available in r128)
+    const geometry = new THREE.CylinderGeometry(0.3, 0.3, 1.6, 8);
     const material = new THREE.MeshLambertMaterial({ 
         color: 0x4169E1,
         flatShading: true 
@@ -287,8 +287,8 @@ function createNPCs() {
 function createNPC(color) {
     const group = new THREE.Group();
 
-    // Body
-    const bodyGeometry = new THREE.CapsuleGeometry(0.25, 1, 4, 6);
+    // Body (cylinder instead of capsule)
+    const bodyGeometry = new THREE.CylinderGeometry(0.25, 0.25, 1.4, 6);
     const bodyMaterial = new THREE.MeshLambertMaterial({ 
         color: color,
         flatShading: true 
@@ -516,48 +516,59 @@ function animate() {
 }
 
 function renderOverheadText() {
-    // This would typically use a library like troika-three-text
-    // For now, we'll create simple DOM elements
-    npcs.forEach(npc => {
-        if (npc.userData.chatTimer > 2) {
-            // Show chat text above NPC
-            const vector = npc.position.clone();
-            vector.y += 2;
-            vector.project(camera);
+    // Simplified overhead text rendering
+    try {
+        npcs.forEach((npc, index) => {
+            if (npc.userData && npc.userData.chatTimer > 2) {
+                // Show chat text above NPC
+                const vector = npc.position.clone();
+                vector.y += 2;
+                vector.project(camera);
 
-            const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
-            const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+                const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
 
-            // Remove existing chat elements
-            const existing = document.querySelector(`.chat-overhead-${npc.id}`);
-            if (existing) existing.remove();
+                // Remove existing chat elements
+                const existing = document.querySelector(`.chat-overhead-${index}`);
+                if (existing) existing.remove();
 
-            // Create new chat element
-            const chatElement = document.createElement('div');
-            chatElement.className = `chat-overhead-${npc.id}`;
-            chatElement.style.position = 'absolute';
-            chatElement.style.left = x + 'px';
-            chatElement.style.top = y + 'px';
-            chatElement.style.color = '#FFE600';
-            chatElement.style.fontSize = '12px';
-            chatElement.style.fontWeight = 'bold';
-            chatElement.style.textShadow = '1px 1px 0px #000000, -1px -1px 0px #000000, 1px -1px 0px #000000, -1px 1px 0px #000000';
-            chatElement.style.pointerEvents = 'none';
-            chatElement.style.zIndex = '10';
-            chatElement.style.transform = 'translate(-50%, -100%)';
-            chatElement.textContent = npc.userData.chatText;
-            
-            document.body.appendChild(chatElement);
+                // Create new chat element
+                const chatElement = document.createElement('div');
+                chatElement.className = `chat-overhead-${index}`;
+                chatElement.style.position = 'absolute';
+                chatElement.style.left = x + 'px';
+                chatElement.style.top = y + 'px';
+                chatElement.style.color = '#FFE600';
+                chatElement.style.fontSize = '12px';
+                chatElement.style.fontWeight = 'bold';
+                chatElement.style.textShadow = '1px 1px 0px #000000';
+                chatElement.style.pointerEvents = 'none';
+                chatElement.style.zIndex = '10';
+                chatElement.style.transform = 'translate(-50%, -100%)';
+                chatElement.textContent = npc.userData.chatText;
+                
+                document.body.appendChild(chatElement);
 
-            // Remove after a short time
-            setTimeout(() => {
-                if (chatElement.parentNode) {
-                    chatElement.parentNode.removeChild(chatElement);
-                }
-            }, 2000);
-        }
-    });
+                // Remove after a short time
+                setTimeout(() => {
+                    if (chatElement.parentNode) {
+                        chatElement.parentNode.removeChild(chatElement);
+                    }
+                }, 2000);
+            }
+        });
+    } catch (error) {
+        console.error('Error rendering overhead text:', error);
+    }
 }
 
 // Initialize the game when the page loads
-window.addEventListener('load', init);
+window.addEventListener('load', () => {
+    console.log('Starting game initialization...');
+    try {
+        init();
+        console.log('Game initialized successfully!');
+    } catch (error) {
+        console.error('Failed to initialize game:', error);
+    }
+});

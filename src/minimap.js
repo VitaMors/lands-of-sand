@@ -16,7 +16,9 @@ function initMinimap() {
 }
 
 function updateMinimap() {
-    if (!minimapCtx || !player) return;
+    if (!minimapCtx) return;
+    if (typeof player === 'undefined' || !player) return;
+    if (typeof buildings === 'undefined' || typeof npcs === 'undefined') return;
     
     const canvas = minimapCanvas;
     const ctx = minimapCtx;

@@ -82,7 +82,14 @@
         <div id="walkHere">Walk here</div>
     </div>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script>
+        // Debug Three.js loading
+        window.addEventListener('load', () => {
+            console.log('Three.js loaded:', typeof THREE !== 'undefined');
+            console.log('THREE object:', THREE);
+        });
+    </script>
     <script src="src/main.js"></script>
     <script src="src/minimap.js"></script>
 </body>
