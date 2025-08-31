@@ -291,8 +291,11 @@
     if (map[idx(x,y)]!==T.WALL) raiders.push({x:x*TILE+16, y:y*TILE+16, dir: Math.random()*Math.PI*2, spd: 45, cd:0});
   }
 
-  // ---------- Pathfinding (A*) ----------
-  const DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
+  // ---------- Pathfinding (A*) with Diagonal Movement ----------
+  const DIRS = [
+    [1,0], [-1,0], [0,1], [0,-1],        // Cardinal directions
+    [1,1], [1,-1], [-1,1], [-1,-1]       // Diagonal directions
+  ];
   function passable(tx,ty){
     if (!inBounds(tx,ty)) return false;
     return map[idx(tx,ty)] !== T.WALL;
@@ -339,8 +342,19 @@
       for (const [dx,dy] of DIRS){
         const nx=cur.x+dx, ny=cur.y+dy;
         if (!passable(nx,ny)) continue;
+        
+        // Check for diagonal movement blocking
+        if (dx !== 0 && dy !== 0) {
+          // Diagonal move - check if both adjacent cells are passable
+          if (!passable(cur.x + dx, cur.y) || !passable(cur.x, cur.y + dy)) {
+            continue; // Block diagonal if either adjacent cell is blocked
+          }
+        }
+        
         const nk=key(nx,ny);
-        const tentative = (gScore.get(key(cur.x,cur.y))??Infinity) + 1;
+        // Diagonal moves cost more (√2 ≈ 1.414)
+        const moveCost = (dx !== 0 && dy !== 0) ? 1.414 : 1;
+        const tentative = (gScore.get(key(cur.x,cur.y))??Infinity) + moveCost;
         if (tentative < (gScore.get(nk)??Infinity)){
           came.set(nk, cur);
           gScore.set(nk, tentative);
@@ -415,20 +429,17 @@
     keys[e.key] = true; // Also store original case
     keys[e.code] = true; // Also store key code
     
-    // Debug camera rotation
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-      console.log('Arrow key pressed:', e.key, e.code);
-      if (!chatActive) {
-        if (e.key === 'ArrowLeft') {
-          camera.rotation = (camera.rotation + 3) % 4;
-          showToast(`Camera: ${['North', 'East', 'South', 'West'][camera.rotation]}`);
-        } else if (e.key === 'ArrowRight') {
-          camera.rotation = (camera.rotation + 1) % 4;
-          showToast(`Camera: ${['North', 'East', 'South', 'West'][camera.rotation]}`);
-        }
-        e.preventDefault();
-        return;
+    // Camera rotation with arrow keys (working fix)
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !chatActive) {
+      if (e.key === 'ArrowLeft') {
+        camera.rotation = (camera.rotation + 3) % 4;
+        showToast(`Camera: ${['North', 'East', 'South', 'West'][camera.rotation]}`);
+      } else if (e.key === 'ArrowRight') {
+        camera.rotation = (camera.rotation + 1) % 4;
+        showToast(`Camera: ${['North', 'East', 'South', 'West'][camera.rotation]}`);
       }
+      e.preventDefault();
+      return;
     }
     
     // Chat system
@@ -648,21 +659,7 @@
       ctx.closePath();
       ctx.fill();
       
-      // Add detailed wall textures
-      if (tileType === 'crystal_wall') {
-        // Crystal wall with veins
-        for (let i = 0; i < 6; i++) {
-          const veinX = wx + (Math.random() - 0.5) * TILE * 0.4;
-          const veinY = wy - h/2 + (Math.random() - 0.5) * h * 0.8;
-          
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(veinX, veinY);
-          ctx.lineTo(veinX + Math.random() * 8 - 4, veinY + Math.random() * 8 - 4);
-          ctx.stroke();
-        }
-      }
+      // Clean walls - no texture noise
     }
     
     // Add subtle outline for definition
@@ -795,15 +792,11 @@
           ctx.fillText('⚡', wx, wy - 25);
           ctx.shadowBlur = 0;
           
-          // Add energy orbs
-          for (let i = 0; i < 3; i++) {
-            const orbX = wx + Math.cos(Date.now() * 0.001 + i * 2) * 12;
-            const orbY = wy - 20 + Math.sin(Date.now() * 0.001 + i * 2) * 5;
-            ctx.fillStyle = 'rgba(255, 215, 0, 0.8)';
-            ctx.beginPath();
-            ctx.arc(orbX, orbY, 3, 0, Math.PI * 2);
-            ctx.fill();
-          }
+          // Static exchange symbol only
+          ctx.fillStyle = 'rgba(255, 215, 0, 0.8)';
+          ctx.beginPath();
+          ctx.arc(wx, wy - 20, 4, 0, Math.PI * 2);
+          ctx.fill();
         } else if (t === T.SCAV) {
           // Scavenger territory - earthy crystal ground
           drawIsometricTile(wx, wy, 0, '#9ACD32', '#8FBC8F', '#7A9D7A', 'crystal');
@@ -913,13 +906,7 @@
       drawSpeechBubble(bubbleX, bubbleY, playerMsg.message);
     }
 
-    // Add atmospheric lighting effects
-    const lightGradient = ctx.createRadialGradient(VIEW_W/2, VIEW_H/2, 0, VIEW_W/2, VIEW_H/2, VIEW_W);
-    lightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
-    lightGradient.addColorStop(0.5, 'rgba(186, 85, 211, 0.05)');
-    lightGradient.addColorStop(1, 'rgba(75, 0, 130, 0.15)');
-    ctx.fillStyle = lightGradient;
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    // Clean - no atmospheric overlay
 
     drawMinimap();
   }
