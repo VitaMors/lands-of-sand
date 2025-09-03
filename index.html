@@ -1,106 +1,305 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lands of Sand - RuneScape Classic Style</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background: #1a1a1a;
-            font-family: Arial, sans-serif;
-        }
-        
-        #gameContainer {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-        }
-        
-        #minimap {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 200px;
-            height: 200px;
-            border: 2px solid #8B4513;
-            background: #2F4F2F;
-            image-rendering: pixelated;
-            z-index: 100;
-        }
-        
-        #chatPanel {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            width: 400px;
-            height: 140px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid #8B4513;
-            color: #FFFFFF;
-            font-size: 12px;
-            padding: 8px;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .chat-message {
-            margin-bottom: 2px;
-        }
-        
-        .player-name {
-            color: #00FFFF;
-            font-weight: bold;
-        }
-        
-        .npc-name {
-            color: #FFFF00;
-            font-weight: bold;
-        }
-        
-        #walkHere {
-            position: absolute;
-            color: #00FF00;
-            font-size: 12px;
-            font-weight: bold;
-            pointer-events: none;
-            text-shadow: 1px 1px 0px #000000;
-            z-index: 50;
-            display: none;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OSRS-like MVP • FP/TP toggle + minimap click + WASD + jump</title>
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#0b0e12;color:#cbd5e1;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial}
+    #hud{position:fixed;left:12px;top:12px;z-index:10;background:#0b0e12cc;border:1px solid #1f2937;padding:10px 12px;border-radius:10px;font-size:12px;line-height:1.4}
+    #minimapFrame{position:fixed;right:12px;top:12px;width:24vmin;height:24vmin;border:2px solid #334155;border-radius:8px;box-shadow:0 0 0 2px #0b0e12}
+    #tip{opacity:.75;margin-top:6px}
+    canvas{display:block;width:100vw;height:100vh}
+    .markerDot{position:fixed;width:8px;height:8px;border-radius:50%;background:#22d3ee;border:2px solid #0e7490;right:0;top:0;opacity:0;pointer-events:none}
+  </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <canvas id="minimap" width="200" height="200"></canvas>
-        <div id="chatPanel">
-            <div style="color:#cfd2dc; font-size:14px; font-weight:bold; margin-bottom:4px; flex-shrink:0;">Global Chat</div>
-            <div id="chatBox" style="flex:1; overflow-y:auto; background:#0a0b0f; border:1px solid #1a1d24; border-radius:4px; padding:6px; font-size:12px; font-family:monospace; margin-bottom:4px; min-height:70px;">
-                <!-- Chat messages appear here -->
-            </div>
-            <div style="display:flex; align-items:center; gap:4px; flex-shrink:0; padding:2px 0;">
-                <span style="color:#f6c66a; font-weight:bold;">UNNAMED</span>
-                <span style="color:#a0a3ad;">:</span>
-                <span id="chatPrompt" style="color:#666; font-style:italic;">PRESS ENTER TO START TYPING</span>
-                <span id="chatInput" style="color:#eaeaf0; display:none;"></span>
-                <span id="chatCursor" style="color:#eaeaf0; display:none;">|</span>
-            </div>
-        </div>
-        <div id="walkHere">Walk here</div>
-    </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-    <script>
-        // Debug Three.js loading
-        window.addEventListener('load', () => {
-            console.log('Three.js loaded:', typeof THREE !== 'undefined');
-            console.log('THREE object:', THREE);
-        });
-    </script>
-    <script src="src/main.js"></script>
-    <script src="src/minimap.js"></script>
+  <div id="hud">
+    <div><b>Controls</b></div>
+    <div>WASD = move, Space = jump, Mouse = look, V = first/third person</div>
+    <div>Click <b>minimap</b> to auto-walk. Press WASD to cancel.</div>
+    <div id="tip">Click anywhere (outside minimap) to lock mouse. Esc to unlock.</div>
+  </div>
+  <div id="minimapFrame" aria-hidden="true"></div>
+  <div class="markerDot" id="miniDot"></div>
+  <canvas id="c"></canvas>
+
+  <script type="module">
+    // single-file Three.js MVP with FP/TP toggle, minimap click-to-move, WASD, jump
+    import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+
+    // ---------- renderer ----------
+    const canvas = document.getElementById('c');
+    const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setScissorTest(true);
+
+    // ---------- scene & lighting ----------
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0e12);
+
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x223344, 0.9);
+    scene.add(hemi);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+    dir.position.set(5,10,3);
+    scene.add(dir);
+
+    // ---------- ground ----------
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(200,200, 1,1),
+      new THREE.MeshStandardMaterial({color:0x202833, roughness:1, metalness:0})
+    );
+    ground.rotation.x = -Math.PI/2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // simple "trees"/props for scale
+    const propMat = new THREE.MeshStandardMaterial({color:0x39526d});
+    for(let i=0;i<24;i++){
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.6,4,8), propMat);
+      m.position.set((Math.random()-0.5)*140, 2, (Math.random()-0.5)*140);
+      scene.add(m);
+    }
+
+    // ---------- player ----------
+    const player = new THREE.Object3D();
+    scene.add(player);
+
+    // player body (hidden in FP)
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.45, 1.0, 8, 16),
+                                new THREE.MeshStandardMaterial({color:0x88a2c2, metalness:0, roughness:.8}));
+    body.castShadow = true;
+    player.add(body);
+
+    // movement state
+    const SPEED = 6.0;
+    const JUMP = 4.3;
+    const GRAV = 9.8;
+    const HEIGHT = 1.6; // eye height
+    const FLOOR_Y = 0; // ground plane
+    const vel = new THREE.Vector3(0,0,0);
+    let onGround = true;
+
+    // ---------- cameras ----------
+    // Third-person chase cam (on a rig behind the player)
+    const tpCam = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.1, 1000);
+    const camRig = new THREE.Object3D();
+    player.add(camRig);
+    camRig.add(tpCam);
+
+    // First-person camera
+    const fpCam = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.05, 1000);
+    scene.add(fpCam);
+
+    // FP "arms" (very simple geo) attached to fpCam
+    const arms = new THREE.Group();
+    const armMat = new THREE.MeshStandardMaterial({color:0xd1d5db, metalness:0, roughness:.7});
+    const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.1,0.6,10), armMat);
+    const rightArm = leftArm.clone();
+    leftArm.rotation.z = Math.PI/2; rightArm.rotation.z = Math.PI/2;
+    leftArm.position.set(-0.25,-0.2,-0.3);
+    rightArm.position.set(0.25,-0.2,-0.3);
+    arms.add(leftArm,rightArm);
+    // a tiny "tool" as a box
+    const tool = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.1,0.2), new THREE.MeshStandardMaterial({color:0x94a3b8}));
+    tool.position.set(0,-0.15,-0.6);
+    arms.add(tool);
+    fpCam.add(arms);
+
+    // camera state
+    let firstPerson = false;
+    let yaw = 0, pitch = 0, maxPitch = THREE.MathUtils.degToRad(85);
+
+    function setPerspective(fp){
+      firstPerson = fp;
+      body.visible = !fp;     // hide body in FP to avoid clipping
+      if(fp){
+        fpCam.position.copy(player.position).add(new THREE.Vector3(0, HEIGHT, 0));
+      }
+    }
+    setPerspective(false); // start TP
+
+    // ---------- minimap (second pass with scissor viewport) ----------
+    const miniCam = new THREE.OrthographicCamera(-20,20,20,-20, 0.1, 200);
+    miniCam.rotation.x = -Math.PI/2;
+    miniCam.position.set(0, 40, 0);
+    scene.add(miniCam);
+
+    const frame = document.getElementById('minimapFrame');
+    const miniDot = document.getElementById('miniDot');
+
+    // world-space destination marker
+    const markerGeo = new THREE.RingGeometry(0.0, 0.5, 32);
+    const markerMat = new THREE.MeshBasicMaterial({color:0x22d3ee});
+    const marker = new THREE.Mesh(markerGeo, markerMat);
+    marker.rotation.x = -Math.PI/2;
+    marker.visible = false;
+    scene.add(marker);
+
+    let autoWalk = false;
+    const walkTarget = new THREE.Vector3();
+
+    // ---------- input ----------
+    const keys = new Set();
+    addEventListener('keydown', e => {
+      if (['KeyW','KeyA','KeyS','KeyD','Space'].includes(e.code)) e.preventDefault();
+      keys.add(e.code);
+      if (e.code.startsWith('Key')) autoWalk = false; // any WASD cancels autowalk
+      if (e.code === 'KeyV') setPerspective(!firstPerson);
+    });
+    addEventListener('keyup', e => keys.delete(e.code));
+
+    // pointer lock for mouse look (click outside minimap)
+    addEventListener('mousedown', e=>{
+      const r = frame.getBoundingClientRect();
+      const insideMini = e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom;
+      if(!insideMini) document.body.requestPointerLock?.();
+    });
+    addEventListener('mousemove', e=>{
+      if (document.pointerLockElement === document.body){
+        const sens = 0.0023;
+        yaw -= e.movementX * sens;
+        pitch = THREE.MathUtils.clamp(pitch - e.movementY * sens, -maxPitch, maxPitch);
+      }
+    });
+
+    // minimap click → set world destination
+    frame.addEventListener('mousedown', (e)=>{
+      const r = frame.getBoundingClientRect();
+      if (e.button!==0) return;
+      const nx = ( (e.clientX - r.left) / r.width ) * 2 - 1;
+      const ny = ( (e.clientY - r.top) / r.height ) * -2 + 1; // invert Y
+
+      // project ray from miniCam
+      const ndc = new THREE.Vector3(nx, ny, 0.5);
+      ndc.unproject(miniCam);
+      const from = new THREE.Vector3(ndc.x, miniCam.position.y, ndc.z);
+      const dir = new THREE.Vector3(0,-1,0); // straight down because ortho top-down
+      const t = (FLOOR_Y - from.y) / dir.y; // intersect Y=0 plane
+      walkTarget.set(from.x + dir.x*t, FLOOR_Y, from.z + dir.z*t);
+
+      // set marker + autowalk
+      marker.visible = true;
+      marker.position.copy(walkTarget);
+
+      // also move a UI dot roughly aligned with minimap spot (cosmetic)
+      miniDot.style.opacity = 1;
+      miniDot.style.right = (innerWidth - e.clientX - 4) + 'px';
+      miniDot.style.top = (e.clientY - 4) + 'px';
+      setTimeout(()=> miniDot.style.opacity = 0, 900);
+
+      autoWalk = true;
+    });
+
+    // ---------- update loop ----------
+    function resize(){
+      renderer.setSize(innerWidth, innerHeight);
+      fpCam.aspect = innerWidth/innerHeight;
+      tpCam.aspect = innerWidth/innerHeight;
+      fpCam.updateProjectionMatrix();
+      tpCam.updateProjectionMatrix();
+    }
+    addEventListener('resize', resize);
+
+    const temp = new THREE.Vector3();
+    function loop(t){
+      requestAnimationFrame(loop);
+
+      // camera rig calc
+      const forward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)*-1); // -Z forward
+      const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0,1,0)).normalize().negate();
+
+      // input to wishdir
+      let wish = new THREE.Vector3();
+      if (!autoWalk){
+        if (keys.has('KeyW')) wish.add(forward);
+        if (keys.has('KeyS')) wish.add(forward.clone().multiplyScalar(-1));
+        if (keys.has('KeyA')) wish.add(right.clone().multiplyScalar(-1));
+        if (keys.has('KeyD')) wish.add(right);
+        if (wish.lengthSq()>0) wish.normalize().multiplyScalar(SPEED);
+      } else {
+        // steer towards walkTarget
+        temp.copy(walkTarget).sub(player.position);
+        temp.y = 0;
+        if (temp.length()<0.5){
+          autoWalk = false;
+          marker.visible = false;
+        } else {
+          temp.normalize();
+          wish.copy(temp).multiplyScalar(SPEED);
+          // rotate body towards target
+          yaw = Math.atan2(-temp.x, -temp.z);
+        }
+      }
+
+      // horizontal accel
+      vel.x = THREE.MathUtils.damp(vel.x, wish.x, 10, 1/60);
+      vel.z = THREE.MathUtils.damp(vel.z, wish.z, 10, 1/60);
+
+      // gravity / jump
+      if (player.position.y <= FLOOR_Y + HEIGHT*0.5 + 0.01){
+        onGround = true;
+        player.position.y = FLOOR_Y + HEIGHT*0.5;
+        vel.y = 0;
+        if (keys.has('Space')){
+          vel.y = JUMP;
+          onGround = false;
+        }
+      } else {
+        onGround = false;
+        vel.y -= GRAV * (1/60);
+      }
+
+      // integrate
+      player.position.addScaledVector(vel, 1/60);
+
+      // orient body (yaw only)
+      player.rotation.y = yaw;
+
+      // cameras
+      if (firstPerson){
+        fpCam.position.copy(player.position).add(new THREE.Vector3(0, HEIGHT, 0));
+        fpCam.rotation.set(pitch, yaw, 0, 'YXZ');
+      } else {
+        // chase cam using spherical offset from yaw/pitch
+        const dist = 4.2; // camera distance
+        const camPitch = pitch*0.7; // soften
+        const off = new THREE.Spherical(dist, Math.PI/2 - camPitch, yaw + Math.PI);
+        const v = new THREE.Vector3().setFromSpherical(off);
+        tpCam.position.copy(player.position).add(new THREE.Vector3(0, HEIGHT*0.75, 0)).add(v);
+        tpCam.lookAt(player.position.clone().add(new THREE.Vector3(0, HEIGHT*0.6, 0)));
+      }
+
+      // minimap follows player
+      miniCam.position.x = player.position.x;
+      miniCam.position.z = player.position.z;
+
+      // render main view (full screen scissor)
+      renderer.setViewport(0,0, innerWidth, innerHeight);
+      renderer.setScissor(0,0, innerWidth, innerHeight);
+      renderer.render(scene, firstPerson ? fpCam : tpCam);
+
+      // render minimap into frame rect
+      const r = frame.getBoundingClientRect();
+      const x = Math.floor(r.left);
+      const y = Math.floor(innerHeight - r.bottom);
+      const w = Math.floor(r.width);
+      const h = Math.floor(r.height);
+      renderer.setViewport(x,y,w,h);
+      renderer.setScissor(x,y,w,h);
+      renderer.render(scene, miniCam);
+    }
+    requestAnimationFrame(loop);
+
+    // initial place player
+    player.position.set(0, FLOOR_Y + HEIGHT*0.5, 10);
+
+    // helpful: unlock mouse when pressing Esc
+    document.addEventListener('pointerlockchange', ()=>{
+      document.getElementById('tip').style.opacity =
+        (document.pointerLockElement===document.body) ? .3 : .75;
+    });
+  </script>
 </body>
 </html>

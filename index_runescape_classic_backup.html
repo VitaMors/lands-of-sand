@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lands of Sand - RuneScape Classic Style</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #minimap {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 200px;
+            height: 200px;
+            border: 2px solid #8B4513;
+            background: #2F4F2F;
+            image-rendering: pixelated;
+            z-index: 100;
+        }
+        
+        #chatPanel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 400px;
+            height: 140px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #8B4513;
+            color: #FFFFFF;
+            font-size: 12px;
+            padding: 8px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-message {
+            margin-bottom: 2px;
+        }
+        
+        .player-name {
+            color: #00FFFF;
+            font-weight: bold;
+        }
+        
+        .npc-name {
+            color: #FFFF00;
+            font-weight: bold;
+        }
+        
+        #walkHere {
+            position: absolute;
+            color: #00FF00;
+            font-size: 12px;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 1px 1px 0px #000000;
+            z-index: 50;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="minimap" width="200" height="200"></canvas>
+        <div id="chatPanel">
+            <div style="color:#cfd2dc; font-size:14px; font-weight:bold; margin-bottom:4px; flex-shrink:0;">Global Chat</div>
+            <div id="chatBox" style="flex:1; overflow-y:auto; background:#0a0b0f; border:1px solid #1a1d24; border-radius:4px; padding:6px; font-size:12px; font-family:monospace; margin-bottom:4px; min-height:70px;">
+                <!-- Chat messages appear here -->
+            </div>
+            <div style="display:flex; align-items:center; gap:4px; flex-shrink:0; padding:2px 0;">
+                <span style="color:#f6c66a; font-weight:bold;">UNNAMED</span>
+                <span style="color:#a0a3ad;">:</span>
+                <span id="chatPrompt" style="color:#666; font-style:italic;">PRESS ENTER TO START TYPING</span>
+                <span id="chatInput" style="color:#eaeaf0; display:none;"></span>
+                <span id="chatCursor" style="color:#eaeaf0; display:none;">|</span>
+            </div>
+        </div>
+        <div id="walkHere">Walk here</div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script>
+        // Debug Three.js loading
+        window.addEventListener('load', () => {
+            console.log('Three.js loaded:', typeof THREE !== 'undefined');
+            console.log('THREE object:', THREE);
+        });
+    </script>
+    <script src="src/main.js"></script>
+    <script src="src/minimap.js"></script>
+</body>
+</html>
