@@ -27,6 +27,7 @@
   <script type="module">
     // single-file Three.js MVP with FP/TP toggle, minimap click-to-move, WASD, jump
     import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+    import { CapsuleGeometry } from 'https://unpkg.com/three@0.160.0/examples/jsm/geometries/CapsuleGeometry.js';
 
     // ---------- renderer ----------
     const canvas = document.getElementById('c');
@@ -67,7 +68,7 @@
     scene.add(player);
 
     // player body (hidden in FP)
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.45, 1.0, 8, 16),
+    const body = new THREE.Mesh(new CapsuleGeometry(0.45, 1.0, 8, 16),
                                 new THREE.MeshStandardMaterial({color:0x88a2c2, metalness:0, roughness:.8}));
     body.castShadow = true;
     player.add(body);
